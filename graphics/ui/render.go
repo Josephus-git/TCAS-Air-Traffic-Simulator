@@ -71,5 +71,4 @@ func (r *simulationAreaRenderer) Refresh() {
 	r.simulationArea.statusLabel.Refresh()
 
 	// Request the widget itself to redraw, which will trigger Layout()
-	canvas.Refresh(r.simulationArea)
 }

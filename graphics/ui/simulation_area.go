@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image/color"
 	"log"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -35,6 +36,8 @@ type SimulationArea struct {
 
 	// Reference to the main window to return to it
 	mainWindow fyne.Window
+
+	stopTicker chan struct{}
 }
 
 // Ensure SimulationArea implements the necessary interfaces for a widget,
@@ -54,21 +57,40 @@ func NewSimulationArea(numAirports int, mainWindow fyne.Window) *SimulationArea 
 		offsetX:            0,
 		offsetY:            0,
 		lastPanPos:         fyne.Position{},
-		statusLabel:        canvas.NewText("Drag to pan | Zoom: 1x", color.White),
+		statusLabel:        canvas.NewText("Drag to pan | Zoom: 1x", color.RGBA{R: 0, G: 0, B: 0, A: 0}),
 		airportImage:       airportImage,
 		initialAirportSize: fyne.NewSize(70, 56),                // Base size
 		zoomLevel:          2,                                   // Start at the base zoom level
 		zoomScales:         []float32{0.25, 0.5, 1.0, 2.0, 3.0}, // Scales for 5x5, 10x10, 15x15 (relative to initial size)
 		mainWindow:         mainWindow,
+		stopTicker:         make(chan struct{}),
 	}
 	sa.statusLabel.Alignment = fyne.TextAlignCenter
-	sa.statusLabel.TextStyle.Bold = true
 	sa.statusLabel.TextSize = 8
 
 	// Initialize the BaseWidget part of SimulationArea
 	sa.BaseWidget.ExtendBaseWidget(sa) // This is how you initialize the embedded BaseWidget
 
 	sa.generateAirports(numAirports)
+
+	// Start a goroutine for continuous refresh
+	go func() {
+		ticker := time.NewTicker(500 * time.Millisecond) // Refresh every 0.5 seconds
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				fyne.Do(func() {
+					sa.Refresh() // Call the widget's Refresh method
+				})
+
+			case <-sa.stopTicker:
+				log.Println("SimulationArea refresh ticker stopped.")
+				return
+			}
+		}
+	}()
+
 	return sa
 }
 
@@ -186,4 +208,10 @@ func (sa *SimulationArea) ZoomOut() {
 	}
 	sa.Refresh()
 	log.Printf("Zoom level changed to: %d (Scale: %.1fx)", sa.zoomLevel, sa.zoomScales[sa.zoomLevel])
+}
+
+// Destroy is called when the widget is no longer needed.
+func (sa *SimulationArea) Destroy() {
+	close(sa.stopTicker) // Signal the goroutine to stop
+	sa.BaseWidget.Hide() // <<<<<<<< return here to check functionality
 }
