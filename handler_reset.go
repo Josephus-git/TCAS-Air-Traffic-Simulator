@@ -14,5 +14,5 @@ func resetAll(cfg *config.Config) {
 // restartApplication resets the application's log and then initiates the application startup sequence.
 func restartApplication() {
 	util.ResetLog()
-	start()
+	Start()
 }
