@@ -13,9 +13,9 @@ import (
 )
 
 // Airport represents a single airport with its properties
-type Airport struct {
+type AirportRender struct {
 	ID      int     // Serial number (e.g., 1 for "001")
-	X, Y    float32 // Base coordinates (before pan/zoom)
+	X, Y    float64 // Base coordinates (before pan/zoom)
 	Image   *canvas.Image
 	IDLabel *canvas.Text
 }
@@ -27,9 +27,9 @@ type SimulationArea struct {
 	lastPanPos        fyne.Position // Last mouse position for drag calculations
 	statusLabel       *canvas.Text  // Label to display current status or offset
 
-	airports           []*Airport    // Slice of all airports to draw
-	airportImage       fyne.Resource // The base airport image resource
-	initialAirportSize fyne.Size     // Base size of an airport image (5x5)
+	airports           []*AirportRender // Slice of all airports to draw
+	airportImage       fyne.Resource    // The base airport image resource
+	initialAirportSize fyne.Size        // Base size of an airport image (5x5)
 
 	zoomLevel  int       // 0.25, 0.5, 1, 2, 3
 	zoomScales []float32 // Scale factors for each zoom level
@@ -71,7 +71,7 @@ func NewSimulationArea(numAirports int, mainWindow fyne.Window) *SimulationArea 
 	// Initialize the BaseWidget part of SimulationArea
 	sa.BaseWidget.ExtendBaseWidget(sa) // This is how you initialize the embedded BaseWidget
 
-	sa.generateAirports(numAirports)
+	sa.generateAirportsToRender(numAirports)
 
 	// Start a goroutine for continuous refresh
 	go func() {
@@ -95,15 +95,15 @@ func NewSimulationArea(numAirports int, mainWindow fyne.Window) *SimulationArea 
 }
 
 // generateAirports creates the airport objects based on the input number.
-func (sa *SimulationArea) generateAirports(num int) {
+func (sa *SimulationArea) generateAirportsToRender(num int) {
 	const spacing = 250.0    // 250 units apart
 	const airportsPerRow = 8 // Arbitrary number of airports per row for grid layout
 
-	sa.airports = make([]*Airport, num)
-	for i := 0; i < num; i++ {
+	sa.airports = make([]*AirportRender, num)
+	for i := range num {
 		id := i + 1
-		x := float32((i % airportsPerRow) * spacing)
-		y := float32((i / airportsPerRow) * spacing)
+		x := float64((i % airportsPerRow) * spacing)
+		y := float64((i / airportsPerRow) * spacing)
 
 		// Create a canvas.Image for each airport
 		img := canvas.NewImageFromResource(sa.airportImage)
@@ -113,7 +113,7 @@ func (sa *SimulationArea) generateAirports(num int) {
 		label := canvas.NewText(fmt.Sprintf("%03d", id), color.White)
 		label.TextSize = 8 // Small text for serial number
 
-		sa.airports[i] = &Airport{
+		sa.airports[i] = &AirportRender{
 			ID:      id,
 			X:       x,
 			Y:       y,

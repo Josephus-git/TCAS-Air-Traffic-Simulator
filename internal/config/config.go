@@ -5,4 +5,5 @@ type Config struct {
 	NoOfAirplanes      int
 	IsRunning          bool
 	DifferentAltitudes bool
+	FirstRun           bool
 }

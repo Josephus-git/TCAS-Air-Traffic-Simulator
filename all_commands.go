@@ -29,11 +29,11 @@ func getCommand(cfg *config.Config, simState *aviation.SimulationState, argument
 				helpFunc(cfg, simState, argument2)
 			},
 		},
-		"start": {
-			name:        "start",
+		"run": {
+			name:        "run",
 			description: "Initializes and runs the simulation",
 			callback: func() {
-				go startInit(simState, argument2)
+				runInit(cfg, simState)
 			},
 		},
 		"get": {

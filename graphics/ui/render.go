@@ -37,8 +37,8 @@ func (r *simulationAreaRenderer) Layout(size fyne.Size) {
 	// Layout each airport and its serial number label
 	for _, airport := range r.simulationArea.airports {
 		// Apply pan and zoom to airport position
-		displayX := (airport.X * scale) + r.simulationArea.offsetX
-		displayY := (airport.Y * scale) + r.simulationArea.offsetY
+		displayX := (float32(airport.X) * scale) + r.simulationArea.offsetX
+		displayY := (float32(airport.Y) * scale) + r.simulationArea.offsetY
 
 		// Position the airport image
 		airport.Image.Resize(currentAirportDisplaySize)

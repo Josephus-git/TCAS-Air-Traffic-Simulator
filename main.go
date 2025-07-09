@@ -5,21 +5,22 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/josephus-git/TCAS-simulation-Fyne/graphics/ui"
 	"github.com/josephus-git/TCAS-simulation-Fyne/internal/aviation"
 	"github.com/josephus-git/TCAS-simulation-Fyne/internal/config"
 	"github.com/josephus-git/TCAS-simulation-Fyne/internal/util"
 )
 
 func main() {
-	ui.StartFyne()
+	util.ResetLog()
+	start()
 }
 
 // start initializes the TCAS simulator, loads configurations, and enters a continuous command-line interaction loop.
-func Start() {
+func start() {
 	scanner := bufio.NewScanner(os.Stdin)
 	initialize := &config.Config{
 		IsRunning: true,
+		FirstRun:  true,
 	}
 	simState := &aviation.SimulationState{}
 
@@ -51,8 +52,3 @@ func Start() {
 	}
 	restartApplication()
 }
-
-//func main() {
-//	util.ResetLog()
-//	start()
-//}

@@ -71,7 +71,7 @@ func startSimulation(simState *aviation.SimulationState, durationMinutes time.Du
 
 	// Start the takeoff simulation (using your provided startSimulation function)
 	// Pass ctx and wg to startSimulation so airport goroutines can respect shutdown
-	startAirports(simState, ctx, &wg, f, tcasLog)
+	StartAirports(simState, ctx, &wg, f, tcasLog)
 
 	// --- Start Flight Monitoring Goroutine (for landings) ---
 	log.Printf("--- Starting Flight Landing and TCAS Monitor ---\n\n")
