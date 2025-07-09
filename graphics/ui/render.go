@@ -65,11 +65,14 @@ func (r *simulationAreaRenderer) Destroy() {
 }
 
 func (r *simulationAreaRenderer) Refresh() {
-	// Update the status label to show current offset and zoom level
 	zoomText := fmt.Sprintf("Zoom: %.1fx", r.simulationArea.zoomScales[r.simulationArea.zoomLevel])
-	r.simulationArea.statusLabel.Text = fmt.Sprintf("Offset: %.0f, %.0f | %s | Drag to pan", r.simulationArea.offsetX, r.simulationArea.offsetY, zoomText)
+	r.simulationArea.statusLabel.Text = fmt.Sprintf(
+		"Offset: %.0f, %.0f | %s | Drag to pan",
+		r.simulationArea.offsetX, r.simulationArea.offsetY, zoomText,
+	)
+	r.simulationArea.statusLabel.Refresh()
 
-	r.simulationArea.statusLabel.Refresh() // Call the widget's Refresh method
-
-	// Request the widget itself to redraw, which will trigger Layout()
+	// 🔧 Force layout and redraw
+	r.Layout(r.simulationArea.Size()) // <--- This is key!
+	canvas.Refresh(r.simulationArea)  // Optional: full canvas refresh
 }

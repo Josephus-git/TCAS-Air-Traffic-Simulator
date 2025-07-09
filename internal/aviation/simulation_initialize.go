@@ -162,7 +162,7 @@ func generateCoordinates(numCoordinates int) []Point {
 
 	// Loop to generate points for successive stages until the desired
 	// number of coordinates (numCoordinates) is reached.
-	for len(points) < numCoordinates {
+	for i := 0; len(points) < numCoordinates; i++ {
 		// Calculate the angular increment for points in the current stage.
 		// Points are evenly distributed around 360 degrees.
 		angleIncrement := 360.0 / float64(currentNumPointsInStage)
@@ -172,7 +172,7 @@ func generateCoordinates(numCoordinates int) []Point {
 		randomOffsetAngle := r.Float64() * 360.0 // Random angle between 0 and 360 degrees.
 
 		// Generate points for the current stage.
-		for i := 0; i < currentNumPointsInStage; i++ {
+		for j := 0; j < currentNumPointsInStage; j++ {
 			// Check if we have already generated enough coordinates.
 			// This is important to stop precisely at numCoordinates,
 			// even if it's in the middle of a stage.
@@ -186,7 +186,7 @@ func generateCoordinates(numCoordinates int) []Point {
 
 			// Calculate the angle for the current point, adding the random offset.
 			// Convert degrees to radians for trigonometric functions: radians = degrees * (pi / 180).
-			angle := (float64(i)*angleIncrement + randomOffsetAngle)
+			angle := (float64(j)*angleIncrement + randomOffsetAngle)
 			angleRad := angle * (math.Pi / 180.0)
 
 			// Calculate the X and Y coordinates using polar to Cartesian conversion.
@@ -200,8 +200,8 @@ func generateCoordinates(numCoordinates int) []Point {
 		}
 
 		// Prepare for the next stage:
-		// 1. The number of points in the next stage is 3 times the current stage.
-		currentNumPointsInStage *= 3
+		// 1. The number of points in the next stage is 3 more airports than the current stage.
+		currentNumPointsInStage += 3
 		// 2. Update the minimum and maximum radii for the next stage.
 		minRadius += 250.0
 		maxRadius += 300.0

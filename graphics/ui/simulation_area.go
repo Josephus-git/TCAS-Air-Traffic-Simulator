@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"image/color"
 	"log"
-	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -54,14 +53,14 @@ func NewSimulationArea(simState *aviation.SimulationState, mainWindow fyne.Windo
 	}
 
 	sa := &SimulationArea{
-		offsetX:            700,
-		offsetY:            300,
+		offsetX:            0,
+		offsetY:            0,
 		lastPanPos:         fyne.Position{},
 		statusLabel:        canvas.NewText("Drag to pan | Zoom: 1x", color.RGBA{R: 0, G: 0, B: 0, A: 0}),
 		airportImage:       airportImage,
 		initialAirportSize: fyne.NewSize(70, 56),                // Base size
 		zoomLevel:          2,                                   // Start at the base zoom level
-		zoomScales:         []float32{0.25, 0.5, 1.0, 2.0, 3.0}, // Scales for 5x5, 10x10, 15x15 (relative to initial size)
+		zoomScales:         []float32{0.25, 0.5, 1.0, 2.0, 3.0}, // Scales (relative to initial size)
 		mainWindow:         mainWindow,
 		stopTicker:         make(chan struct{}),
 	}
@@ -72,24 +71,6 @@ func NewSimulationArea(simState *aviation.SimulationState, mainWindow fyne.Windo
 	sa.BaseWidget.ExtendBaseWidget(sa) // This is how you initialize the embedded BaseWidget
 
 	sa.generateAirportsToRender(simState)
-
-	// Start a goroutine for continuous refresh
-	go func() {
-		ticker := time.NewTicker(500 * time.Millisecond) // Refresh every 0.5 seconds
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ticker.C:
-				fyne.Do(func() {
-					sa.Refresh() // Call the widget's Refresh method
-				})
-
-			case <-sa.stopTicker:
-				log.Println("SimulationArea refresh ticker stopped.")
-				return
-			}
-		}
-	}()
 
 	return sa
 }
