@@ -10,14 +10,14 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/widget"
+	"github.com/josephus-git/TCAS-simulation-Fyne/internal/aviation"
 )
 
 // Airport represents a single airport with its properties
 type AirportRender struct {
-	ID      int     // Serial number (e.g., 1 for "001")
-	X, Y    float64 // Base coordinates (before pan/zoom)
-	Image   *canvas.Image
-	IDLabel *canvas.Text
+	ActualAirport *aviation.Airport
+	Image         *canvas.Image
+	IDLabel       *canvas.Text
 }
 
 // SimulationArea is the custom widget where the simulation (airport map) will be rendered.
@@ -47,15 +47,15 @@ var _ desktop.Mouseable = (*SimulationArea)(nil)
 var _ fyne.Draggable = (*SimulationArea)(nil)
 
 // NewSimulationArea creates a new SimulationArea widget.
-func NewSimulationArea(numAirports int, mainWindow fyne.Window) *SimulationArea {
+func NewSimulationArea(simState *aviation.SimulationState, mainWindow fyne.Window) *SimulationArea {
 	airportImage, err := fyne.LoadResourceFromPath("assets/whiteAirport.png")
 	if err != nil {
 		log.Fatalf("Error loading airport image: %v. Make sure 'assets/whiteAirport.png' exists.", err)
 	}
 
 	sa := &SimulationArea{
-		offsetX:            0,
-		offsetY:            0,
+		offsetX:            700,
+		offsetY:            300,
 		lastPanPos:         fyne.Position{},
 		statusLabel:        canvas.NewText("Drag to pan | Zoom: 1x", color.RGBA{R: 0, G: 0, B: 0, A: 0}),
 		airportImage:       airportImage,
@@ -71,7 +71,7 @@ func NewSimulationArea(numAirports int, mainWindow fyne.Window) *SimulationArea 
 	// Initialize the BaseWidget part of SimulationArea
 	sa.BaseWidget.ExtendBaseWidget(sa) // This is how you initialize the embedded BaseWidget
 
-	sa.generateAirportsToRender(numAirports)
+	sa.generateAirportsToRender(simState)
 
 	// Start a goroutine for continuous refresh
 	go func() {
@@ -95,30 +95,26 @@ func NewSimulationArea(numAirports int, mainWindow fyne.Window) *SimulationArea 
 }
 
 // generateAirports creates the airport objects based on the input number.
-func (sa *SimulationArea) generateAirportsToRender(num int) {
-	const spacing = 250.0    // 250 units apart
-	const airportsPerRow = 8 // Arbitrary number of airports per row for grid layout
+func (sa *SimulationArea) generateAirportsToRender(simState *aviation.SimulationState) {
 
-	sa.airports = make([]*AirportRender, num)
-	for i := range num {
-		id := i + 1
-		x := float64((i % airportsPerRow) * spacing)
-		y := float64((i / airportsPerRow) * spacing)
+	airportNum := len(simState.Airports)
+
+	sa.airports = make([]*AirportRender, airportNum)
+	for i, actualAirport := range simState.Airports {
 
 		// Create a canvas.Image for each airport
 		img := canvas.NewImageFromResource(sa.airportImage)
 		img.SetMinSize(sa.initialAirportSize) // Set initial size
 
 		// Create a label for the serial number
-		label := canvas.NewText(fmt.Sprintf("%03d", id), color.White)
+		label := canvas.NewText(fmt.Sprintf("%s (%.3f,%3f)",
+			actualAirport.Serial, actualAirport.Location.X, actualAirport.Location.Y), color.White)
 		label.TextSize = 8 // Small text for serial number
 
 		sa.airports[i] = &AirportRender{
-			ID:      id,
-			X:       x,
-			Y:       y,
-			Image:   img,
-			IDLabel: label,
+			ActualAirport: actualAirport,
+			Image:         img,
+			IDLabel:       label,
 		}
 	}
 }
@@ -186,8 +182,8 @@ func (sa *SimulationArea) MouseMoved(ev *desktop.MouseEvent) {
 
 // Home resets the view to the origin (0,0) with current zoom.
 func (sa *SimulationArea) Home() {
-	sa.offsetX = 0
-	sa.offsetY = 0
+	sa.offsetX = 700
+	sa.offsetY = 300
 	sa.Refresh()
 	log.Println("Moved to origin (0,0)")
 }

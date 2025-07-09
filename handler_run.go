@@ -17,6 +17,7 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
+	"github.com/josephus-git/TCAS-simulation-Fyne/graphics/ui"
 	"github.com/josephus-git/TCAS-simulation-Fyne/internal/aviation"
 	"github.com/josephus-git/TCAS-simulation-Fyne/internal/config"
 )
@@ -24,10 +25,17 @@ import (
 func StartFyne(cfg *config.Config, simState *aviation.SimulationState, f, tcasLog *os.File) {
 	// Create a new Fyne application
 	a := app.New()
+	a.Settings().SetTheme(ui.CustomDarkTheme{})
 
 	// --- Initial Input Window ---
 	inputWindow := a.NewWindow("TCAS Simulation Setup")
 	inputWindow.Resize(fyne.NewSize(400, 600)) // Smaller initial window
+
+	// A close interceptor for the main window
+	inputWindow.SetCloseIntercept(func() {
+		// When the main window is closed, quit the application
+		a.Quit()
+	})
 
 	title := canvas.NewText("TCAS Simulation Setup", color.White)
 	title.TextSize = 24
@@ -127,8 +135,9 @@ func StartFyne(cfg *config.Config, simState *aviation.SimulationState, f, tcasLo
 		fmt.Printf("Varying Altitude: %v\n", varyingAltitude)
 
 		// Create and show the simulation window
+		ui.GraphicsSimulationInit(simState, simulationWindow, inputWindow)
+
 		// <<<<< modify when correct
-		//ui.GraphicsSimulationInit(simState, simulationWindow, num, inputWindow)
 		//startSimulation(simState, time.Duration(durationOfSimulation), f, tcasLog)
 
 		inputWindow.Hide()

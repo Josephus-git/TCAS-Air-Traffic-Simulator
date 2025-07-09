@@ -37,8 +37,8 @@ func (r *simulationAreaRenderer) Layout(size fyne.Size) {
 	// Layout each airport and its serial number label
 	for _, airport := range r.simulationArea.airports {
 		// Apply pan and zoom to airport position
-		displayX := (float32(airport.X) * scale) + r.simulationArea.offsetX
-		displayY := (float32(airport.Y) * scale) + r.simulationArea.offsetY
+		displayX := (float32(airport.ActualAirport.Location.X) * scale) + r.simulationArea.offsetX
+		displayY := (float32(airport.ActualAirport.Location.Y) * scale) + r.simulationArea.offsetY
 
 		// Position the airport image
 		airport.Image.Resize(currentAirportDisplaySize)
@@ -48,7 +48,7 @@ func (r *simulationAreaRenderer) Layout(size fyne.Size) {
 		// Adjust label position based on its size and airport's size
 		labelSize := airport.IDLabel.MinSize() // Get the minimum size required for the label text
 		labelX := displayX + (currentAirportDisplaySize.Width / 2) - (labelSize.Width / 2)
-		labelY := displayY - labelSize.Height - 2 // 2 units above the airport image
+		labelY := displayY - labelSize.Height // 0 units above the airport image
 
 		airport.IDLabel.Resize(labelSize)
 		airport.IDLabel.Move(fyne.NewPos(labelX, labelY))
@@ -68,7 +68,8 @@ func (r *simulationAreaRenderer) Refresh() {
 	// Update the status label to show current offset and zoom level
 	zoomText := fmt.Sprintf("Zoom: %.1fx", r.simulationArea.zoomScales[r.simulationArea.zoomLevel])
 	r.simulationArea.statusLabel.Text = fmt.Sprintf("Offset: %.0f, %.0f | %s | Drag to pan", r.simulationArea.offsetX, r.simulationArea.offsetY, zoomText)
-	r.simulationArea.statusLabel.Refresh()
+
+	r.simulationArea.statusLabel.Refresh() // Call the widget's Refresh method
 
 	// Request the widget itself to redraw, which will trigger Layout()
 }

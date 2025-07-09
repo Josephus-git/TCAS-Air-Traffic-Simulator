@@ -121,111 +121,91 @@ func calculateDistance(p1, p2 Point) float64 {
 	return math.Sqrt(dx*dx + dy*dy)
 }
 
-// generateCoordinates generates a list of (X, Y) coordinates based on specified spacing and density rules.
+// generateCoordinates generates a slice of 2D points based on a specific pattern.
+// The first coordinate is always (0,0). Subsequent coordinates are generated in stages,
+// forming concentric rings.
 //
-// The rules are:
-//  1. Minimum Separation: Every new coordinate generated must be at least 50 units
-//     away from *all* previously generated coordinates. This prevents overlap and
-//     ensures a minimum spacing between all points.
-//  2. Initial Clustering (First 4 Points): For the first four coordinates,
-//     the generation attempts to place them within a 50 to 100 unit range from a
-//     randomly selected existing point. This helps in forming a relatively compact
-//     initial group, while strictly adhering to the 50-unit minimum separation
-//     from all other points.
-//  3. Spreading Mechanism (5th Point Onwards): To avoid "overpopulation" in one
-//     area and encourage the coordinates to spread out across the "map", for the
-//     fifth coordinate and all subsequent ones, the generation is guided. New
-//     points are primarily generated outward from the coordinate that is currently
-//     farthest from the origin (0,0) among all existing points. They will be placed
-//     at least 50 units away from this "most distant" point.
+// Parameters:
+//
+//	numCoordinates: The total number of coordinates to generate.
+//
+// Returns:
+//
+//	A slice of Point structs containing the generated coordinates.
 func generateCoordinates(numCoordinates int) []Point {
-	if numCoordinates <= 0 {
-		return []Point{}
-	}
-
-	// Initialize random number generator with a unique seed based on current time.
+	// Initialize a new random number generator.
+	// Using time.Now().UnixNano() as the seed ensures that the generated
+	// coordinates will be different each time the function is called.
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 
-	coordinates := make([]Point, 0, numCoordinates)
-	minDist := 50.0 // The minimum required distance between any two coordinates
+	// Initialize an empty slice to store the generated points.
+	points := []Point{}
 
-	// Maximum attempts to find a valid position for a single coordinate.
-	// If a valid spot isn't found after this many attempts, the function will stop.
-	maxAttemptsPerPoint := 5000
-
-	for i := range numCoordinates {
-		foundValidPoint := false
-		attempts := 0
-
-		for !foundValidPoint && attempts < maxAttemptsPerPoint {
-			var candidateX, candidateY float64
-
-			if len(coordinates) == 0 {
-				// For the very first coordinate, start near the origin with a small random offset.
-				candidateX = r.Float64()*10 - 5 // Range -5 to 5
-				candidateY = r.Float64()*10 - 5 // Range -5 to 5
-			} else {
-				// Find the point currently farthest from the origin (0,0).
-				// This point serves as a reference for expanding the map outwards later.
-				mostDistantPoint := Point{X: 0.0, Y: 0.0}
-				maxDistFromOriginSq := -1.0
-				for _, p := range coordinates {
-					distSq := p.X*p.X + p.Y*p.Y
-					if distSq > maxDistFromOriginSq {
-						maxDistFromOriginSq = distSq
-						mostDistantPoint = p
-					}
-				}
-
-				// Strategy for generating the next candidate point:
-				if len(coordinates) < 4 {
-					// For the first 4 points, select a random existing point as a reference.
-					// Attempt to place the new point within 50 to 100 units from this reference.
-					// This encourages a relatively compact initial grouping.
-					referencePoint := coordinates[r.Intn(len(coordinates))] // Pick a random existing point
-					angle := r.Float64() * 2 * math.Pi                      // Random angle for direction
-					// Distance from the reference point, between min_dist and 100.0
-					distanceFromRef := r.Float64()*(100.0-minDist) + minDist
-					candidateX = referencePoint.X + distanceFromRef*math.Cos(angle)
-					candidateY = referencePoint.Y + distanceFromRef*math.Sin(angle)
-				} else {
-					// For the 5th point and onwards, use the most distant point from origin as reference.
-					// This ensures new points expand the map, preventing clumping ("overpopulation").
-					// Generate the new point at least 50 units away from this most distant point.
-					// A range of 50 to 150 units from the reference is used to provide some variability.
-					referencePoint := mostDistantPoint
-					angle := r.Float64() * 2 * math.Pi
-					// Aim for 50-150 from reference
-					distanceFromRef := r.Float64()*(minDist+100.0-minDist) + minDist
-					candidateX = referencePoint.X + distanceFromRef*math.Cos(angle)
-					candidateY = referencePoint.Y + distanceFromRef*math.Sin(angle)
-				}
-			}
-
-			candidatePoint := Point{X: candidateX, Y: candidateY}
-
-			// Validate the candidate: Ensure it is at least `minDist` away from *all* existing points.
-			isValid := true
-			for _, existingPoint := range coordinates {
-				if calculateDistance(candidatePoint, existingPoint) < minDist {
-					isValid = false
-					break // If too close to any point, this candidate is invalid
-				}
-			}
-
-			if isValid {
-				coordinates = append(coordinates, candidatePoint)
-				foundValidPoint = true
-			}
-			attempts++
-		}
-
-		if !foundValidPoint {
-			// If after many attempts a valid spot isn't found, print a warning and stop early.
-			// This can happen if the constraints are too strict for the desired number of points.
-			fmt.Printf("Warning: Could not find a valid coordinate after %d attempts for point %d. Stopping generation.\n", maxAttemptsPerPoint, i+1)
-			break
-		}
+	// Handle the edge case where 0 or fewer coordinates are requested.
+	if numCoordinates <= 0 {
+		return points
 	}
-	return coordinates
+
+	// The first coordinate is always (0,0)
+	points = append(points, Point{X: 0, Y: 0})
+
+	// If only 1 coordinate is requested, we've already added it, so return.
+	if numCoordinates == 1 {
+		return points
+	}
+
+	// Initialize parameters for the first stage (ring) of coordinates.
+	// This stage will have 3 points.
+	currentNumPointsInStage := 3
+	minRadius := 150.0 // Minimum radius for the current stage.
+	maxRadius := 250.0 // Maximum radius for the current stage.
+
+	// Loop to generate points for successive stages until the desired
+	// number of coordinates (numCoordinates) is reached.
+	for len(points) < numCoordinates {
+		// Calculate the angular increment for points in the current stage.
+		// Points are evenly distributed around 360 degrees.
+		angleIncrement := 360.0 / float64(currentNumPointsInStage)
+
+		// NEW: Generate a random offset angle for the current stage.
+		// This ensures that each ring starts at a different random rotation.
+		randomOffsetAngle := r.Float64() * 360.0 // Random angle between 0 and 360 degrees.
+
+		// Generate points for the current stage.
+		for i := 0; i < currentNumPointsInStage; i++ {
+			// Check if we have already generated enough coordinates.
+			// This is important to stop precisely at numCoordinates,
+			// even if it's in the middle of a stage.
+			if len(points) >= numCoordinates {
+				break // Exit the inner loop.
+			}
+
+			// Generate a random radius within the current stage's defined range.
+			// r.Float64() returns a pseudo-random float64 in [0.0, 1.0).
+			radius := minRadius + r.Float64()*(maxRadius-minRadius)
+
+			// Calculate the angle for the current point, adding the random offset.
+			// Convert degrees to radians for trigonometric functions: radians = degrees * (pi / 180).
+			angle := (float64(i)*angleIncrement + randomOffsetAngle)
+			angleRad := angle * (math.Pi / 180.0)
+
+			// Calculate the X and Y coordinates using polar to Cartesian conversion.
+			// X = radius * cos(angle)
+			// Y = radius * sin(angle)
+			x := radius * math.Cos(angleRad)
+			y := radius * math.Sin(angleRad)
+
+			// Add the newly calculated point to our slice of points.
+			points = append(points, Point{X: x, Y: y})
+		}
+
+		// Prepare for the next stage:
+		// 1. The number of points in the next stage is 3 times the current stage.
+		currentNumPointsInStage *= 3
+		// 2. Update the minimum and maximum radii for the next stage.
+		minRadius += 250.0
+		maxRadius += 300.0
+	}
+
+	return points
 }

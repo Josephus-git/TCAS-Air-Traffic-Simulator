@@ -11,10 +11,10 @@ import (
 	"github.com/josephus-git/TCAS-simulation-Fyne/internal/aviation"
 )
 
-func GraphicsSimulationInit(simState *aviation.SimulationState, simulationWindow fyne.Window, num int, inputWindow fyne.Window) {
+func GraphicsSimulationInit(simState *aviation.SimulationState, simulationWindow fyne.Window, inputWindow fyne.Window) {
 	simulationWindow.Resize(fyne.NewSize(800, 600)) // Larger window for simulation
 
-	simulationArea := NewSimulationArea(num, inputWindow) // Pass inputWindow reference
+	simulationArea := NewSimulationArea(simState, inputWindow) // Pass inputWindow reference
 
 	// Controls for the simulation window
 
