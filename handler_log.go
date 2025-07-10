@@ -105,6 +105,10 @@ func logAirplanesDetails(simState *aviation.SimulationState) {
 	})
 
 	fmt.Fprintln(f, "\n--- Logging selected fields for each plane in ---")
+	if len(Planes) == 0 {
+		fmt.Fprintln(f, "\n--- No plane recorded currently ---")
+		return
+	}
 	for i, plane := range Planes {
 		fmt.Fprintf(f, "Plane %d (Serial: %s):\n", i+1, plane.Serial)
 		fmt.Fprintf(f, "  In Flight: %t\n", plane.PlaneInFlight)
@@ -155,6 +159,10 @@ func logAirportDetails(simState *aviation.SimulationState) {
 	}
 	defer f.Close()
 	fmt.Fprintln(f, "\n--- Logging selected fields for each airport ---")
+	if len(simState.Airports) == 0 {
+		fmt.Fprintln(f, "\n--- No airport recorded currently ---")
+		return
+	}
 	for i, ap := range simState.Airports {
 		fmt.Fprintf(f, "Airport %d (Serial: %s):\n", i+1, ap.Serial)
 		fmt.Fprintf(f, "  Location: %v\n", ap.Location)

@@ -1,7 +1,11 @@
 package ui
 
 import (
+	"image/color"
+	"time"
+
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
@@ -28,6 +32,10 @@ func GraphicsSimulationInit(simState *aviation.SimulationState, simulationWindow
 	quitButton := widget.NewButtonWithIcon("Quit", theme.CancelIcon(), func() {
 		simulationWindow.Close()
 		inputWindow.Show()
+		if simState.SimIsRunning {
+			aviation.EmergencyStop(simState)
+		}
+
 	})
 
 	// Arrange controls at the top
@@ -40,10 +48,29 @@ func GraphicsSimulationInit(simState *aviation.SimulationState, simulationWindow
 		layout.NewSpacer(),
 	)
 
+	// Bottom label
+	simEndLabel := canvas.NewText("", color.RGBA{})
+	simEndLabel.Alignment = fyne.TextAlignCenter
+	go func() {
+		ticker := time.NewTicker(1 * time.Second)
+		defer ticker.Stop()
+
+		for range ticker.C {
+			if !simState.SimIsRunning {
+				fyne.Do(func() {
+					simulationWindow.Close()
+
+				})
+
+				return
+			}
+		}
+	}()
+
 	// Main content layout for simulation window: controls at top, simulation area fills rest
 	simContent := container.NewBorder(
 		simControls,
-		nil,
+		simEndLabel,
 		nil,
 		nil,
 		simulationArea,

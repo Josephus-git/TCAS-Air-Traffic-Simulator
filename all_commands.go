@@ -57,13 +57,6 @@ func getCommand(cfg *config.Config, simState *aviation.SimulationState, argument
 				emergencyStop(simState)
 			},
 		},
-		"--reset": {
-			name:        "--reset",
-			description: "Resets the application to the beginning",
-			callback: func() {
-				resetAll(cfg)
-			},
-		},
 	}
 	return commands
 }

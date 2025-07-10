@@ -19,15 +19,14 @@ func main() {
 func start() {
 	scanner := bufio.NewScanner(os.Stdin)
 	initialize := &config.Config{
-		IsRunning: true,
-		FirstRun:  true,
+		FirstRun: true,
 	}
 	simState := &aviation.SimulationState{}
 
 	aviation.GetNumberOfPlanes(initialize)
-	aviation.InitializeAirports(initialize, simState)
 
-	for i := 0; initialize.IsRunning; i++ {
+	// This loop is to run only before the simulation is called
+	for initialize.FirstRun {
 		fmt.Print("TCAS-simulator > ")
 		scanner.Scan()
 		input := util.CleanInput(scanner.Text())
@@ -50,5 +49,4 @@ func start() {
 
 		println("")
 	}
-	restartApplication()
 }

@@ -65,6 +65,7 @@ func (r *simulationAreaRenderer) Destroy() {
 }
 
 func (r *simulationAreaRenderer) Refresh() {
+
 	zoomText := fmt.Sprintf("Zoom: %.1fx", r.simulationArea.zoomScales[r.simulationArea.zoomLevel])
 	r.simulationArea.statusLabel.Text = fmt.Sprintf(
 		"Offset: %.0f, %.0f | %s | Drag to pan",

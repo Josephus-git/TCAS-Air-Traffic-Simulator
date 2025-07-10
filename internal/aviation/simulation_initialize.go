@@ -19,7 +19,6 @@ type SimulationState struct {
 	Airports           []*Airport
 	PlanesInFlight     []Plane
 	Mu                 sync.Mutex
-	SimStatusChannel   chan struct{}
 	DifferentAltitudes bool
 	SimIsRunning       bool
 	SimEndedTime       time.Time
@@ -47,8 +46,8 @@ func GetNumberOfPlanes(conf *config.Config) {
 			fmt.Println("Please input a valid integer")
 			continue
 		}
-		if num < 2 {
-			fmt.Println("Please input a valid integer greater than 1")
+		if num < 4 {
+			fmt.Println("Please input a valid integer greater than 3")
 			continue
 		}
 
@@ -113,13 +112,6 @@ func InitializeAirports(conf *config.Config, simState *SimulationState) {
 type Point struct {
 	X float64
 	Y float64
-}
-
-// calculateDistance calculates the Euclidean distance between two 2D points.
-func calculateDistance(p1, p2 Point) float64 {
-	dx := p1.X - p2.X
-	dy := p1.Y - p2.Y
-	return math.Sqrt(dx*dx + dy*dy)
 }
 
 // generateCoordinates generates a slice of 2D points based on a specific pattern.

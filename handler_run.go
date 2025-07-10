@@ -2,14 +2,11 @@ package main
 
 import (
 	"bufio"
-	"context"
 	"fmt"
 	"image/color"
 	"log"
-	"math/rand"
 	"os"
 	"strconv"
-	"sync"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -43,6 +40,7 @@ func StartFyne(cfg *config.Config, simState *aviation.SimulationState, f, tcasLo
 		inputWindow.SetCloseIntercept(func() {
 			inputWindow.Hide()
 			cfg.FirstRun = false
+
 		})
 
 		title := canvas.NewText("TCAS Simulation Setup", color.White)
@@ -56,19 +54,13 @@ func StartFyne(cfg *config.Config, simState *aviation.SimulationState, f, tcasLo
 
 		// Input entry for Number of Planes
 		numPlanesEntry := widget.NewEntry()
-		if cfg.NoOfAirplanes >= 2 {
-			numPlanesEntry.SetPlaceHolder(fmt.Sprintf("Currently set to: %d", cfg.NoOfAirplanes))
-		}
 
 		numPlanesEntry.Validator = func(s string) error {
 			_, err := strconv.Atoi(s)
 			if err != nil {
 				if s == "" && cfg.FirstRun {
 					return nil
-				} else if s == "" && !simState.SimWindowOpened {
-					return nil
 				}
-
 				return fmt.Errorf("please input a valid integer")
 			}
 			return nil
@@ -112,12 +104,15 @@ func StartFyne(cfg *config.Config, simState *aviation.SimulationState, f, tcasLo
 		startSimulationButton := widget.NewButton("Start Simulation", func() {
 			simulationWindow = a.NewWindow("Airport Simulation")
 
-			// <<<<<<<<<<<check here
+			// update the form so the number of planes can be updated
 			simulationWindow.SetOnClosed(func() {
 				numPlanesEntry.Show()
 				numPlanesEntry.SetPlaceHolder("")
 				varyingAltitudeCheckbox.Show()
 				inputWindow.Show()
+				if simState.SimIsRunning {
+					aviation.EmergencyStop(simState)
+				}
 			})
 
 			var numAirPlanes int
@@ -147,21 +142,22 @@ func StartFyne(cfg *config.Config, simState *aviation.SimulationState, f, tcasLo
 			errorMessage.Text = "" // Clear error message
 			errorMessage.Refresh()
 
-			fmt.Printf("Simulation Started!\n")
-			fmt.Printf("Number of Planes: %d\n", numAirPlanes)
-			fmt.Printf("Duration: %d minute(s)\n", durationOfSimulation)
-			fmt.Printf("Varying Altitude: %v\n", varyingAltitude)
+			// Initialize the airports
+			cfg.DifferentAltitudes = varyingAltitude
+			cfg.NoOfAirplanes = numAirPlanes
+			aviation.InitializeAirports(cfg, simState)
+
+			// run the simulation
+			go aviation.StartSimulation(simState, time.Duration(durationOfSimulation), f, tcasLog)
 
 			// Create and show the simulation window
 			ui.GraphicsSimulationInit(simState, simulationWindow, inputWindow)
-
-			// <<<<< modify when correct
-			//startSimulation(simState, time.Duration(durationOfSimulation), f, tcasLog)
 
 			simulationWindow.Show()
 			inputWindow.Hide()
 			cfg.FirstRun = false
 			simState.SimWindowOpened = true
+			simState.SimIsRunning = true
 			log.Printf("Starting simulation with %d airplanes.", numAirPlanes)
 		})
 
@@ -196,7 +192,7 @@ func StartFyne(cfg *config.Config, simState *aviation.SimulationState, f, tcasLo
 func startPartition(cfg *config.Config, simState *aviation.SimulationState) {
 	scanner := bufio.NewScanner(os.Stdin)
 
-	for i := 0; cfg.IsRunning; i++ {
+	for {
 		fmt.Print("TCAS-simulator > ")
 		scanner.Scan()
 		input := util.CleanInput(scanner.Text())
@@ -243,53 +239,4 @@ func runInit(cfg *config.Config, simState *aviation.SimulationState) {
 
 	StartFyne(cfg, simState, f, tcasLog)
 
-}
-
-// <<<<<<<<< change back when done
-// startAirports launches goroutines for each airport to handle takeoffs.
-func StartAirports(simState *aviation.SimulationState, ctx context.Context, wg *sync.WaitGroup, f, tcasLog *os.File) {
-	log.Printf("--- Starting Airport Launch Operations ---")
-	fmt.Fprintf(f, "%s--- Starting Airport Launch Operations ---\n",
-		time.Now().Format("2006-01-02 15:04:05"))
-	for i := range simState.Airports {
-		ap := simState.Airports[i] // Get a pointer to the airport
-		wg.Add(1)                  // Add to WaitGroup for each airport goroutine
-		go func(airport *aviation.Airport) {
-			defer wg.Done()
-			airportRand := rand.New(rand.NewSource(time.Now().UnixNano() + int64(i)*1000)) // Unique seed for each airport
-
-			for {
-				select {
-				case <-ctx.Done(): // Check if the main simulation context is done
-					// stopping all airport launch operations
-					return // Exit goroutine
-				default:
-					// Continue operation
-				}
-
-				sleepDuration := time.Duration(airportRand.Intn(int(AirportLaunchIntervalMax.Seconds()-AirportLaunchIntervalMin.Seconds())+1)+int(AirportLaunchIntervalMin.Seconds())) * time.Second //wait 5 to 10 seconds
-				select {
-				case <-time.After(sleepDuration):
-				case <-ctx.Done():
-					// stoping all airport launch operation during sleep
-					return
-				}
-
-				airport.Mu.Lock() // Lock airport to safely check and pick a plane
-				if len(airport.Planes) > 0 {
-					planeToTakeOff := airport.Planes[0] // Pick the first available plane for simplicity
-					airport.Mu.Unlock()                 // Unlock airport before calling TakeOff
-
-					// IMPORTANT: Pass the global simState here.
-					_, err := airport.TakeOff(planeToTakeOff, simState, f, tcasLog) // Pass the simState from main
-					if err != nil {
-						// log.Printf("error taking off from %s: %v", airport.Serial, err)
-					}
-				} else {
-					airport.Mu.Unlock() // Always ensure lock is released
-					// log.Printf("Airport %s has no planes to take off.", airport.Serial)
-				}
-			}
-		}(ap) // Pass airport pointer
-	}
 }

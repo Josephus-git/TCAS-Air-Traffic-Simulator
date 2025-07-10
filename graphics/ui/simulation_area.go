@@ -85,7 +85,7 @@ func (sa *SimulationArea) generateAirportsToRender(simState *aviation.Simulation
 		img.SetMinSize(sa.initialAirportSize) // Set initial size
 
 		// Create a label for the serial number
-		label := canvas.NewText(fmt.Sprintf("%s (%.1f,%1f)",
+		label := canvas.NewText(fmt.Sprintf("%s (%.1f,%.1f)",
 			actualAirport.Serial, actualAirport.Location.X, actualAirport.Location.Y), color.White)
 		label.TextSize = 8 * sa.zoomScales[sa.zoomLevel] // Small text for serial number
 

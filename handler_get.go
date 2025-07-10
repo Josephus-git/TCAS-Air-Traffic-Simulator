@@ -86,6 +86,10 @@ func getAirPlanesDetails(simState *aviation.SimulationState) {
 	})
 
 	fmt.Println("\n--- Printing selected fields for each plane in airports ---")
+	if len(Planes) == 0 {
+		fmt.Println("\n--- No plane recorded currently ---")
+		return
+	}
 	for i, plane := range Planes {
 		fmt.Printf("Plane %d (Serial: %s):\n", i+1, plane.Serial)
 		fmt.Printf("  In Flight: %t\n", plane.PlaneInFlight)
@@ -129,6 +133,10 @@ func getAirPlanesDetails(simState *aviation.SimulationState) {
 // getAirportDetails prints selected details of all airports from the simulation state to the console.
 func getAirportDetails(simState *aviation.SimulationState) {
 	fmt.Println("\n--- Printing selected fields for all airports ---")
+	if len(simState.Airports) == 0 {
+		fmt.Println("\n--- No flight recorded currently ---")
+		return
+	}
 	for i, airport := range simState.Airports {
 		fmt.Printf("Airport %d (Serial: %s):\n", i+1, airport.Serial)
 		fmt.Printf("  Location: %v\n", airport.Location)

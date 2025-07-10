@@ -1,4 +1,4 @@
-package main
+package aviation
 
 import (
 	"context"
@@ -7,18 +7,9 @@ import (
 	"os"
 	"sync"
 	"time"
-
-	"github.com/josephus-git/TCAS-simulation-Fyne/internal/aviation"
 )
 
 // Simulation parameters
-
-// AirportLaunchIntervalMin is the min random delay before an airport tries to launch a plane
-const AirportLaunchIntervalMin = 1 * time.Second
-
-// AirportLaunchIntervalMax is the max random delay before an airport tries to launch a plane
-const AirportLaunchIntervalMax = 60 * time.Second
-
 // FlightMonitorInterval is how often the monitor checks planes for landing time
 const FlightMonitorInterval = 500 * time.Millisecond
 
@@ -33,9 +24,9 @@ var stopTrigger *time.Timer
 
 // startSimulationInit initializes and starts the TCAS simulation, managing goroutines for takeoffs and landings.
 // It sets up a context for graceful shutdown and waits for all simulation activities to complete.
-func startSimulation(simState *aviation.SimulationState, durationMinutes time.Duration, f, tcasLog *os.File) {
+func StartSimulation(simState *SimulationState, durationMinutes time.Duration, f, tcasLog *os.File) {
 	FlightNumberCount = 0
-	defer close(simState.SimStatusChannel) // Ensures SimStatuschannel is closed when startSimulation function exits
+
 	defer func() { simState.SimIsRunning = false }()
 	defer func() { simState.SimEndedTime = time.Now() }()
 	defer func() { fmt.Print("\nTCAS-simulator > ") }()
@@ -43,7 +34,7 @@ func startSimulation(simState *aviation.SimulationState, durationMinutes time.Du
 	log.Printf("\n--- TCAS Simulation Started for %d minute(s) ---", durationMinutes)
 	fmt.Fprintf(f, "%s\n--- TCAS Simulation Started for %d minute(s) ---\n",
 		time.Now().Format("2006-01-02 15:04:05"), durationMinutes)
-	fmt.Printf("To initiate an emergency stop, type 'q' and press Enter.\n\n")
+
 	fmt.Printf("TCAS logs can be found in logs/tcasLogs.txt. \n\n")
 
 	// WaitGroup to keep track of running goroutines
@@ -71,15 +62,19 @@ func startSimulation(simState *aviation.SimulationState, durationMinutes time.Du
 
 	// Start the takeoff simulation (using your provided startSimulation function)
 	// Pass ctx and wg to startSimulation so airport goroutines can respect shutdown
-	StartAirports(simState, ctx, &wg, f, tcasLog)
+	startAirports(simState, ctx, &wg, f, tcasLog)
 
 	// --- Start Flight Monitoring Goroutine (for landings) ---
 	log.Printf("--- Starting Flight Landing and TCAS Monitor ---\n\n")
 	fmt.Fprintf(f, "%s--- Starting Flight Landing and TCAS Monitor ---, \n\n",
 		time.Now().Format("2006-01-02 15:04:05"))
+	log.Printf("--- Varying Altitudes: %v ---\n\n", simState.DifferentAltitudes)
+	fmt.Fprintf(f, "%s--- Varying Altitudes: %v ---, \n\n",
+		time.Now().Format("2006-01-02 15:04:05"), simState.DifferentAltitudes)
+	fmt.Println("Remember type 'q' and hit Enter to immediately stop the simulation if needed")
 
 	wg.Add(1) // Add for the monitor goroutine
-	go func(globalSimState *aviation.SimulationState, ctx context.Context) {
+	go func(globalSimState *SimulationState, ctx context.Context) {
 		defer wg.Done()
 
 		for i := 0; simState.SimIsRunning; i++ {
@@ -111,10 +106,10 @@ func startSimulation(simState *aviation.SimulationState, durationMinutes time.Du
 			// and then process the copy. This prevents deadlocks if Land() tries to acquire
 			// other locks (like airport.Mu) while globalSimState.Mu is held.
 			globalSimState.Mu.Lock()
-			planesToLand := []aviation.Plane{}
+			planesToLand := []Plane{}
 			type monitorTCASEngagement struct {
-				plane      aviation.Plane
-				engagement aviation.TCASEngagement
+				plane      Plane
+				engagement TCASEngagement
 			}
 			planesToEngageTCASManeuver := []monitorTCASEngagement{}
 			currentTime := time.Now()
@@ -156,11 +151,12 @@ func startSimulation(simState *aviation.SimulationState, durationMinutes time.Du
 
 				// Find the corresponding destination airport object
 				currentFlight := p.FlightLog[len(p.FlightLog)-1]
-				var destinationAirport *aviation.Airport = nil
+				var destinationAirport *Airport = nil
 				for i := range globalSimState.Airports {
 					ap := globalSimState.Airports[i]
 					// Match airport by location, using Epsilon for robust float comparison
-					if aviation.Distance(ap.Location, currentFlight.FlightSchedule.Destination) < aviation.Epsilon {
+					if Distance(ap.Location, currentFlight.FlightSchedule.Destination) <
+						Epsilon {
 						destinationAirport = ap
 						break
 					}
@@ -195,7 +191,7 @@ func startSimulation(simState *aviation.SimulationState, durationMinutes time.Du
 				}
 
 				// Find the corresponding plane to engage the tcas
-				var otherPlane aviation.Plane
+				var otherPlane Plane
 				for _, plane := range globalSimState.PlanesInFlight {
 					if plane.Serial == tcasEngagement.engagement.OtherPlaneSerial {
 						otherPlane = plane
@@ -241,7 +237,7 @@ func startSimulation(simState *aviation.SimulationState, durationMinutes time.Du
 
 							// at this point, the simulation ends
 							if simState.SimIsRunning {
-								emergencyStop(simState)
+								EmergencyStop(simState)
 							}
 
 						})
