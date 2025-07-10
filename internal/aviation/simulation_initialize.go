@@ -23,6 +23,7 @@ type SimulationState struct {
 	DifferentAltitudes bool
 	SimIsRunning       bool
 	SimEndedTime       time.Time
+	SimWindowOpened    bool
 }
 
 // GetNumberOfPlanes prompts the user to input the desired number of planes for the simulation.

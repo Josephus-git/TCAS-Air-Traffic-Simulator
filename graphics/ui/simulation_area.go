@@ -162,7 +162,6 @@ func (sa *SimulationArea) Home() {
 	sa.offsetX = 700
 	sa.offsetY = 300
 	sa.Refresh()
-	log.Println("Moved to origin (AP_000)")
 }
 
 // Zoom increases sizes of object on render screen.
@@ -171,7 +170,6 @@ func (sa *SimulationArea) ZoomIn() {
 		sa.zoomLevel++
 	}
 	sa.Refresh()
-	log.Printf("Zoom level changed to: %d (Scale: %.1fx)", sa.zoomLevel, sa.zoomScales[sa.zoomLevel])
 }
 
 // Zoom increases sizes of object on render screen.
@@ -180,10 +178,4 @@ func (sa *SimulationArea) ZoomOut() {
 		sa.zoomLevel--
 	}
 	sa.Refresh()
-	log.Printf("Zoom level changed to: %d (Scale: %.1fx)", sa.zoomLevel, sa.zoomScales[sa.zoomLevel])
-}
-
-// Destroy is called when the widget is no longer needed.
-func (sa *SimulationArea) Destroy() {
-	sa.BaseWidget.Hide() // <<<<<<<< return here to check functionality
 }

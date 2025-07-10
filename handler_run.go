@@ -42,6 +42,7 @@ func StartFyne(cfg *config.Config, simState *aviation.SimulationState, f, tcasLo
 		// A close interceptor for the main window
 		inputWindow.SetCloseIntercept(func() {
 			inputWindow.Hide()
+			cfg.FirstRun = false
 		})
 
 		title := canvas.NewText("TCAS Simulation Setup", color.White)
@@ -64,7 +65,10 @@ func StartFyne(cfg *config.Config, simState *aviation.SimulationState, f, tcasLo
 			if err != nil {
 				if s == "" && cfg.FirstRun {
 					return nil
+				} else if s == "" && !simState.SimWindowOpened {
+					return nil
 				}
+
 				return fmt.Errorf("please input a valid integer")
 			}
 			return nil
@@ -111,19 +115,24 @@ func StartFyne(cfg *config.Config, simState *aviation.SimulationState, f, tcasLo
 			// <<<<<<<<<<<check here
 			simulationWindow.SetOnClosed(func() {
 				numPlanesEntry.Show()
+				numPlanesEntry.SetPlaceHolder("")
 				varyingAltitudeCheckbox.Show()
 				inputWindow.Show()
 			})
+
 			var numAirPlanes int
-			if !cfg.FirstRun {
-				numAirPlanes, err := strconv.Atoi(numPlanesEntry.Text)
-				if err != nil || numAirPlanes < 2 {
+
+			if !simState.SimWindowOpened {
+				numAirPlanes = cfg.NoOfAirplanes
+			} else {
+				numAirPlanesV, err := strconv.Atoi(numPlanesEntry.Text)
+				if err != nil || numAirPlanesV < 2 {
 					errorMessage.Text = "Please enter a valid number of airplanes (minimum 2)."
 					errorMessage.Refresh()
 					return
+				} else {
+					numAirPlanes = numAirPlanesV
 				}
-			} else {
-				numAirPlanes = cfg.NoOfAirplanes
 			}
 
 			durationOfSimulation, err := strconv.Atoi(durationEntry.Text)
@@ -152,6 +161,7 @@ func StartFyne(cfg *config.Config, simState *aviation.SimulationState, f, tcasLo
 			simulationWindow.Show()
 			inputWindow.Hide()
 			cfg.FirstRun = false
+			simState.SimWindowOpened = true
 			log.Printf("Starting simulation with %d airplanes.", numAirPlanes)
 		})
 
@@ -182,6 +192,7 @@ func StartFyne(cfg *config.Config, simState *aviation.SimulationState, f, tcasLo
 	}
 
 }
+
 func startPartition(cfg *config.Config, simState *aviation.SimulationState) {
 	scanner := bufio.NewScanner(os.Stdin)
 
