@@ -1,8 +1,6 @@
 package ui
 
 import (
-	"log"
-
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/layout"
@@ -28,9 +26,8 @@ func GraphicsSimulationInit(simState *aviation.SimulationState, simulationWindow
 		simulationArea.ZoomOut()
 	})
 	quitButton := widget.NewButtonWithIcon("Quit", theme.CancelIcon(), func() {
-		simulationWindow.Hide()
-		inputWindow.Show() // Show the input window again
-		log.Println("Returned to setup screen.")
+		simulationWindow.Close()
+		inputWindow.Show()
 	})
 
 	// Arrange controls at the top

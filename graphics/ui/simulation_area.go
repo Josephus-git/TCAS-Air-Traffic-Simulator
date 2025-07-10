@@ -35,8 +35,6 @@ type SimulationArea struct {
 
 	// Reference to the main window to return to it
 	mainWindow fyne.Window
-
-	stopTicker chan struct{}
 }
 
 // Ensure SimulationArea implements the necessary interfaces for a widget,
@@ -53,8 +51,8 @@ func NewSimulationArea(simState *aviation.SimulationState, mainWindow fyne.Windo
 	}
 
 	sa := &SimulationArea{
-		offsetX:            0,
-		offsetY:            0,
+		offsetX:            700,
+		offsetY:            300,
 		lastPanPos:         fyne.Position{},
 		statusLabel:        canvas.NewText("Drag to pan | Zoom: 1x", color.RGBA{R: 0, G: 0, B: 0, A: 0}),
 		airportImage:       airportImage,
@@ -62,7 +60,6 @@ func NewSimulationArea(simState *aviation.SimulationState, mainWindow fyne.Windo
 		zoomLevel:          2,                                   // Start at the base zoom level
 		zoomScales:         []float32{0.25, 0.5, 1.0, 2.0, 3.0}, // Scales (relative to initial size)
 		mainWindow:         mainWindow,
-		stopTicker:         make(chan struct{}),
 	}
 	sa.statusLabel.Alignment = fyne.TextAlignCenter
 	sa.statusLabel.TextSize = 8
@@ -88,9 +85,9 @@ func (sa *SimulationArea) generateAirportsToRender(simState *aviation.Simulation
 		img.SetMinSize(sa.initialAirportSize) // Set initial size
 
 		// Create a label for the serial number
-		label := canvas.NewText(fmt.Sprintf("%s (%.3f,%3f)",
+		label := canvas.NewText(fmt.Sprintf("%s (%.1f,%1f)",
 			actualAirport.Serial, actualAirport.Location.X, actualAirport.Location.Y), color.White)
-		label.TextSize = 8 // Small text for serial number
+		label.TextSize = 8 * sa.zoomScales[sa.zoomLevel] // Small text for serial number
 
 		sa.airports[i] = &AirportRender{
 			ActualAirport: actualAirport,
@@ -142,7 +139,6 @@ func (sa *SimulationArea) Dragged(ev *fyne.DragEvent) {
 // DragEnd is called when a drag operation finishes.
 // This implements the fyne.Draggable interface.
 func (sa *SimulationArea) DragEnd() {
-	// Optional: Any cleanup or final state update after a drag
 	sa.lastPanPos = fyne.Position{} // Reset last pan position
 	sa.Refresh()
 }
@@ -166,7 +162,7 @@ func (sa *SimulationArea) Home() {
 	sa.offsetX = 700
 	sa.offsetY = 300
 	sa.Refresh()
-	log.Println("Moved to origin (0,0)")
+	log.Println("Moved to origin (AP_000)")
 }
 
 // Zoom increases sizes of object on render screen.
@@ -189,6 +185,5 @@ func (sa *SimulationArea) ZoomOut() {
 
 // Destroy is called when the widget is no longer needed.
 func (sa *SimulationArea) Destroy() {
-	close(sa.stopTicker) // Signal the goroutine to stop
 	sa.BaseWidget.Hide() // <<<<<<<< return here to check functionality
 }

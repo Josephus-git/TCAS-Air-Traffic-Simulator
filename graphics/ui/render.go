@@ -72,7 +72,13 @@ func (r *simulationAreaRenderer) Refresh() {
 	)
 	r.simulationArea.statusLabel.Refresh()
 
-	// 🔧 Force layout and redraw
-	r.Layout(r.simulationArea.Size()) // <--- This is key!
-	canvas.Refresh(r.simulationArea)  // Optional: full canvas refresh
+	// Update label text sizes according to zoom scale
+	for _, airport := range r.simulationArea.airports {
+		airport.IDLabel.TextSize = 8 * r.simulationArea.zoomScales[r.simulationArea.zoomLevel]
+		airport.IDLabel.Refresh()
+	}
+
+	// Force layout and redraw
+	r.Layout(r.simulationArea.Size())
+	canvas.Refresh(r.simulationArea)
 }
