@@ -111,7 +111,7 @@ func (plane Plane) tcas(simState *SimulationState, tcasLog *os.File) []TCASEngag
 				shouldCrash = false
 			} else if (plane.TCASCapability == TCASPerfect && otherPlane.TCASCapability == TCASFaulty) ||
 				(plane.TCASCapability == TCASFaulty && otherPlane.TCASCapability == TCASPerfect) {
-				// One perfect, one faulty: 50% chance of crash
+				// One perfect, one faulty: 25% chance of crash
 				if rand.Float64() < 0.25 {
 					shouldCrash = true
 				} else {
