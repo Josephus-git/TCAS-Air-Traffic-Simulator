@@ -52,6 +52,13 @@ func StartFyne(cfg *config.Config, simState *aviation.SimulationState, f, tcasLo
 		errorMessage.Alignment = fyne.TextAlignCenter
 		errorMessage.TextStyle.Italic = true
 
+		information1 := canvas.NewText("Light grey is cruise altitude: 10000.0", color.RGBA{R: 200, G: 200, B: 200, A: 255})
+		information1.TextSize = 10
+		information2 := canvas.NewText("Light green is cruise altitude: 11000.0", color.RGBA{G: 255, A: 255})
+		information2.TextSize = 10
+		information3 := canvas.NewText("Light blue is cruise altitude: 12000.0", color.RGBA{B: 255, A: 255})
+		information3.TextSize = 10
+
 		// Input entry for Number of Planes
 		numPlanesEntry := widget.NewEntry()
 
@@ -137,13 +144,14 @@ func StartFyne(cfg *config.Config, simState *aviation.SimulationState, f, tcasLo
 				return
 			}
 
-			varyingAltitude := varyingAltitudeCheckbox.Checked
+			if !cfg.FirstRun {
+				cfg.DifferentAltitudes = varyingAltitudeCheckbox.Checked
+			}
 
 			errorMessage.Text = "" // Clear error message
 			errorMessage.Refresh()
 
 			// Initialize the airports
-			cfg.DifferentAltitudes = varyingAltitude
 			cfg.NoOfAirplanes = numAirPlanes
 			aviation.InitializeAirports(cfg, simState)
 
@@ -170,6 +178,10 @@ func StartFyne(cfg *config.Config, simState *aviation.SimulationState, f, tcasLo
 			inputForm,
 			layout.NewSpacer(),
 			startSimulationButton,
+			layout.NewSpacer(),
+			information1,
+			information2,
+			information3,
 			layout.NewSpacer(),
 			errorMessage,
 			layout.NewSpacer(),

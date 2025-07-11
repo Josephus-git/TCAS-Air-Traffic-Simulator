@@ -12,7 +12,7 @@ import (
 )
 
 // CruisingAltitudes defines 3 cruising altitude for planes in meters.
-var CruisingAltitudes = [3]float64{10000.0, 10200.0, 10400.0}
+var CruisingAltitudes = [3]float64{10000.0, 11000.0, 12000.0}
 
 // TakeoffDuration defines how long a takeoff operation physically lasts.
 const TakeoffDuration = 5 * time.Second

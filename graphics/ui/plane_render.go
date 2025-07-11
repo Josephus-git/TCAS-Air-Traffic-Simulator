@@ -39,8 +39,17 @@ func (sa *SimulationArea) AddPlaneToRender(plane *aviation.Plane) {
 		log.Fatal(err)
 	}
 
+	var line *canvas.Line
 	// Create a faint flight path line
-	line := canvas.NewLine(color.RGBA{R: 200, G: 200, B: 200, A: 25}) // Light grey, semi-transparent
+	switch currentFlight.CruisingAltitude {
+	case 11000.0:
+		line = canvas.NewLine(color.RGBA{G: 200, A: 25}) // Light green, semi-transparent
+	case 12000.0:
+		line = canvas.NewLine(color.RGBA{B: 200, A: 25}) // Light blue, semi-transparent
+	default:
+		line = canvas.NewLine(color.RGBA{R: 200, G: 200, B: 200, A: 25}) // Light grey, semi-transparent
+	}
+
 	line.StrokeWidth = 1
 	line.Hidden = true // Start hidden
 
