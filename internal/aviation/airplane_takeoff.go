@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"fyne.io/fyne/v2"
 	"github.com/josephus-git/TCAS-simulation-Fyne/internal/util"
 )
 
@@ -154,6 +155,13 @@ func (airport *Airport) TakeOff(plane Plane, simState *SimulationState, f, tcasL
 		plane.Serial, plane.CruiseSpeed, airport.Serial, airport.Location.String(), destinationAirport.Serial, destinationAirport.Location.String(), landingTime.Format("15:04:05"))
 	fmt.Fprintf(f, "%s Plane %s (Cruise Speed: %.2fm/s) took off from Airport %s %s, heading to Airport %s %s. Estimated landing at %s.\n\n",
 		time.Now().Format("2006-01-02 15:04:05"), plane.Serial, plane.CruiseSpeed, airport.Serial, airport.Location.String(), destinationAirport.Serial, destinationAirport.Location.String(), landingTime.Format("15:04:05"))
+
+	// Call the UI callback if registered
+	if simState.OnPlaneTakeOffCallback != nil {
+		fyne.Do(func() { // Ensure UI updates are on main goroutine
+			simState.OnPlaneTakeOffCallback(&plane)
+		})
+	}
 
 	return &newFlight, nil
 }

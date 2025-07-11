@@ -5,6 +5,8 @@ import (
 	"log"
 	"os"
 	"time"
+
+	"fyne.io/fyne/v2"
 )
 
 // LandingDuration defines how long a landing operation physically lasts.
@@ -119,6 +121,13 @@ func (ap *Airport) Land(plane Plane, simState *SimulationState, f *os.File) erro
 		plane.Serial, ap.Serial, ap.Location.String())
 	fmt.Fprintf(f, "%sPlane %s successfully landed at Airport %s (%s). It is now parked.\n\n",
 		time.Now().Format("2006-01-02 15:04:05"), plane.Serial, ap.Serial, ap.Location.String())
+
+	// Call the UI callback if registered
+	if simState.OnPlaneLandCallback != nil {
+		fyne.Do(func() { // Ensure UI updates are on main goroutine
+			simState.OnPlaneLandCallback(ap.Serial)
+		})
+	}
 
 	return nil
 }

@@ -23,6 +23,22 @@ type SimulationState struct {
 	SimIsRunning       bool
 	SimEndedTime       time.Time
 	SimWindowOpened    bool
+
+	// Callbacks for UI updates
+	OnPlaneTakeOffCallback func(*Plane)
+	OnPlaneLandCallback    func(string) // Plane serial to remove
+}
+
+// NEW: RegisterPlaneTakeOffCallback allows the UI to register a function
+// that gets called when a plane takes off.
+func (simState *SimulationState) RegisterPlaneTakeOffCallback(callback func(*Plane)) {
+	simState.OnPlaneTakeOffCallback = callback
+}
+
+// NEW: RegisterPlaneLandCallback allows the UI to register a function
+// that gets called when a plane lands.
+func (ss *SimulationState) RegisterPlaneLandCallback(callback func(string)) {
+	ss.OnPlaneLandCallback = callback
 }
 
 // GetNumberOfPlanes prompts the user to input the desired number of planes for the simulation.

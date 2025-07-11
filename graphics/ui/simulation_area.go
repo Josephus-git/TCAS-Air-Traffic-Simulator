@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image/color"
 	"log"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -30,11 +31,22 @@ type SimulationArea struct {
 	airportImage       fyne.Resource    // The base airport image resource
 	initialAirportSize fyne.Size        // Base size of an airport image (5x5)
 
+	planesInFlight      []*PlaneRender // NEW: Slice of all planes currently in flight to draw
+	airplaneImage       fyne.Resource  // NEW: The base airplane image resource
+	initialAirplaneSize fyne.Size      // NEW: Base size of an airplane image
+
 	zoomLevel  int       // 0.25, 0.5, 1, 2, 3
 	zoomScales []float32 // Scale factors for each zoom level
 
 	// Reference to the main window to return to it
 	mainWindow fyne.Window
+
+	// Callbacks for plane take-off and landing notifications from aviation package
+	RegisterPlaneTakeOffCallback func(*aviation.Plane)
+	RegisterPlaneLandCallback    func(string) // Pass plane serial for removal
+
+	// Timer for updating plane positions
+	animationTicker *time.Ticker
 }
 
 // Ensure SimulationArea implements the necessary interfaces for a widget,
@@ -50,16 +62,25 @@ func NewSimulationArea(simState *aviation.SimulationState, mainWindow fyne.Windo
 		log.Fatalf("Error loading airport image: %v. Make sure 'assets/whiteAirport.png' exists.", err)
 	}
 
+	// NEW: Load airplane image
+	airplaneImage, err := fyne.LoadResourceFromPath("assets/whiteAirplane.png")
+	if err != nil {
+		log.Fatalf("Error loading airplane image: %v. Make sure 'assets/whiteAirplane.png' exists.", err)
+	}
+
 	sa := &SimulationArea{
-		offsetX:            700,
-		offsetY:            300,
-		lastPanPos:         fyne.Position{},
-		statusLabel:        canvas.NewText("Drag to pan | Zoom: 1x", color.RGBA{R: 0, G: 0, B: 0, A: 0}),
-		airportImage:       airportImage,
-		initialAirportSize: fyne.NewSize(70, 56),                // Base size
-		zoomLevel:          2,                                   // Start at the base zoom level
-		zoomScales:         []float32{0.25, 0.5, 1.0, 2.0, 3.0}, // Scales (relative to initial size)
-		mainWindow:         mainWindow,
+		offsetX:             700,
+		offsetY:             300,
+		lastPanPos:          fyne.Position{},
+		statusLabel:         canvas.NewText("Drag to pan | Zoom: 1x", color.RGBA{R: 0, G: 0, B: 0, A: 0}),
+		airportImage:        airportImage,
+		initialAirportSize:  fyne.NewSize(70, 56),                // Base size
+		airplaneImage:       airplaneImage,                       // NEW
+		initialAirplaneSize: fyne.NewSize(30, 24),                // NEW: Smaller initial size for planes
+		zoomLevel:           2,                                   // Start at the base zoom level
+		zoomScales:          []float32{0.25, 0.5, 1.0, 2.0, 3.0}, // Scales (relative to initial size)
+		mainWindow:          mainWindow,
+		planesInFlight:      []*PlaneRender{}, // Initialize empty slice
 	}
 	sa.statusLabel.Alignment = fyne.TextAlignCenter
 	sa.statusLabel.TextSize = 8
@@ -68,6 +89,24 @@ func NewSimulationArea(simState *aviation.SimulationState, mainWindow fyne.Windo
 	sa.BaseWidget.ExtendBaseWidget(sa) // This is how you initialize the embedded BaseWidget
 
 	sa.generateAirportsToRender(simState)
+
+	// NEW: Register callbacks with the simulation state
+	simState.RegisterPlaneTakeOffCallback(sa.AddPlaneToRender)
+	simState.RegisterPlaneLandCallback(sa.RemovePlaneFromRender)
+
+	// NEW: Start a ticker for continuous animation updates
+	sa.animationTicker = time.NewTicker(50 * time.Millisecond) // Update 20 times per second
+	go func() {
+		for range sa.animationTicker.C {
+			if sa.Size().IsZero() { // Don't refresh if widget hasn't been laid out yet
+				continue
+			}
+			// This Do() ensures UI updates happen on the main goroutine
+			fyne.Do(func() {
+				sa.Refresh()
+			})
+		}
+	}()
 
 	return sa
 }
@@ -100,19 +139,9 @@ func (sa *SimulationArea) generateAirportsToRender(simState *aviation.Simulation
 // CreateRenderer is part of the fyne.Widget interface.
 // It defines how the widget is drawn.
 func (sa *SimulationArea) CreateRenderer() fyne.WidgetRenderer {
-	// The objects slice will contain all airport images and their labels
-	// and the status label. The background is handled separately.
-	var objects []fyne.CanvasObject
-	objects = append(objects, sa.statusLabel) // Status label is always on top
-
-	// Add all airport images and labels to the renderable objects
-	for _, airport := range sa.airports {
-		objects = append(objects, airport.Image, airport.IDLabel)
-	}
 
 	return &simulationAreaRenderer{
 		simulationArea: sa,
-		objects:        objects,
 		background:     canvas.NewRectangle(color.RGBA{R: 0, G: 0, B: 0, A: 0}), // Transparent background
 	}
 }
