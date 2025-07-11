@@ -11,8 +11,7 @@ import (
 // simulationAreaRenderer implements fyne.WidgetRenderer for SimulationArea.
 type simulationAreaRenderer struct {
 	simulationArea *SimulationArea
-	//objects        object
-	background *canvas.Rectangle // Background is separate to ensure it's drawn first
+	background     *canvas.Rectangle // Background is separate to ensure it's drawn first
 }
 
 func (r *simulationAreaRenderer) MinSize() fyne.Size {
@@ -83,14 +82,7 @@ func (r *simulationAreaRenderer) Layout(size fyne.Size) {
 		planeRender.Image.Move(fyne.NewPos(displayX-currentAirplaneDisplaySize.Width/2, displayY-currentAirplaneDisplaySize.Height/2)) // Center image
 		planeRender.Image.Hidden = false                                                                                               // Make sure plane is visible
 
-		// Calculate and apply plane orientation
-		rotation := planeOrientation(currentFlight.FlightSchedule.Depature, currentFlight.FlightSchedule.Destination)
-		RotateCanvasImage(planeRender.Image, rotation)
-		// NOTE: canvas.Image does not support rotation directly. To visually rotate, use a canvas.Raster or custom widget.
-
 		// Update flight path line
-		//depX := (float32(currentFlight.FlightSchedule.Depature.X) * scale) + r.simulationArea.offsetX
-		//depY := (float32(currentFlight.FlightSchedule.Depature.Y) * scale) + r.simulationArea.offsetY
 		destX := (float32(currentFlight.FlightSchedule.Destination.X) * scale) + r.simulationArea.offsetX
 		destY := (float32(currentFlight.FlightSchedule.Destination.Y) * scale) + r.simulationArea.offsetY
 

@@ -121,8 +121,8 @@ func StartFyne(cfg *config.Config, simState *aviation.SimulationState, f, tcasLo
 				numAirPlanes = cfg.NoOfAirplanes
 			} else {
 				numAirPlanesV, err := strconv.Atoi(numPlanesEntry.Text)
-				if err != nil || numAirPlanesV < 2 {
-					errorMessage.Text = "Please enter a valid number of airplanes (minimum 2)."
+				if err != nil || numAirPlanesV < 4 {
+					errorMessage.Text = "Please enter a valid number of airplanes (minimum 4)."
 					errorMessage.Refresh()
 					return
 				} else {

@@ -1,10 +1,14 @@
 package ui
 
 import (
+	"bytes"
+	"errors"
 	"image"
 	"image/color"
+	"image/jpeg"
+	"image/png"
+	"log"
 	"math"
-	"os"
 	"time"
 
 	"github.com/disintegration/imaging"
@@ -19,26 +23,30 @@ type PlaneRender struct {
 	ActualPlane    *aviation.Plane
 	Image          *canvas.Image
 	FlightPathLine *canvas.Line // To draw the flight path
-	// We might need to store the initial and destination points of the line in canvas coordinates
-	// so we can dynamically adjust the start point of the visible line.
-	// For now, FlightPathLine's Position1 and Position2 will be updated directly.
 }
 
 // AddPlaneToRender adds a new PlaneRender object to the simulation area.
 // This function will be called by the aviation package via a registered callback.
 func (sa *SimulationArea) AddPlaneToRender(plane *aviation.Plane) {
-	img := canvas.NewImageFromResource(sa.airplaneImage)
-	img.SetMinSize(sa.initialAirplaneSize) // Set initial size
-	img.Hidden = true                      // Start hidden, will be shown when position is updated
+	image := canvas.NewImageFromResource(sa.airplaneImage)
+	image.Hidden = true                      // Start hidden, will be shown when position is updated
+	image.SetMinSize(sa.initialAirplaneSize) // Set initial size
+
+	currentFlight := plane.FlightLog[len(plane.FlightLog)-1]
+	rotation := planeOrientation(currentFlight.FlightSchedule.Depature, currentFlight.FlightSchedule.Destination)
+	rotatedImg, err := RotateCanvasImage(image, rotation)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// Create a faint flight path line
-	line := canvas.NewLine(color.RGBA{R: 200, G: 200, B: 200, A: 100}) // Light grey, semi-transparent
+	line := canvas.NewLine(color.RGBA{R: 200, G: 200, B: 200, A: 25}) // Light grey, semi-transparent
 	line.StrokeWidth = 1
 	line.Hidden = true // Start hidden
 
 	planeRender := &PlaneRender{
 		ActualPlane:    plane,
-		Image:          img,
+		Image:          rotatedImg,
 		FlightPathLine: line,
 	}
 
@@ -76,11 +84,11 @@ func planeCurrentPosition(plane *aviation.Plane, simTime time.Time) (aviation.Co
 
 	if simTime.Before(currentFlight.TakeoffTime) {
 		// Plane hasn't taken off yet, return its departure airport's location
-		return currentFlight.FlightSchedule.Depature, true
+		return currentFlight.FlightSchedule.Depature, false
 	} else if simTime.After(currentFlight.DestinationArrivalTime) {
 		// Plane has landed, return its destination airport's location
 		// The UI should handle removing the plane if it's considered fully landed
-		return currentFlight.FlightSchedule.Destination, true
+		return currentFlight.FlightSchedule.Destination, false
 	} else {
 		// Plane is in transit
 		totalDuration := float64(currentFlight.DestinationArrivalTime.Sub(currentFlight.TakeoffTime))
@@ -103,62 +111,53 @@ func planeCurrentPosition(plane *aviation.Plane, simTime time.Time) (aviation.Co
 }
 
 // planeOrientation calculates the rotation angle for the plane image.
-// Angle is in degrees, clockwise from positive Y-axis (Fyne's default).
+// Angle is in degrees
 func planeOrientation(dep, dest aviation.Coordinate) float64 {
 	// Delta X and Delta Y
-	dx := dest.X - dep.X
-	dy := dest.Y - dep.Y
+	dx := dep.X - dest.X
+	dy := dep.Y - dest.Y
 
-	// Adjust for Fyne's coordinate system (0 deg usually points up/North, increasing clockwise)
-	// If Atan2 gives angle from positive X, then:
-	//  - If dx > 0, dy = 0 (East): angle is 0 deg. We want 90 deg.
-	//  - If dx = 0, dy > 0 (North): angle is 90 deg. We want 0 deg.
-	//  - If dx < 0, dy = 0 (West): angle is 180 deg. We want 270 deg.
-	//  - If dx = 0, dy < 0 (South): angle is -90 deg (or 270 deg). We want 180 deg.
-
-	// A common way to get "heading" from Y-axis (North = 0) clockwise:
-	// angle = 90 - (angle in degrees from X axis)
-	// If Atan2(-dy, dx) is used, 0 deg is positive X, then 90 - result might work.
-	// Let's try Atan2(dx, -dy) for angle from positive Y-axis clockwise.
-	angleFromYClockwiseRad := float64(math.Atan2(dx, -dy))
+	angleFromYClockwiseRad := float64(math.Atan2(dx, dy))
 	rotation := angleFromYClockwiseRad * (180 / math.Pi)
 
 	return rotation
 }
 
-// RotateCanvasImage rotates the image associated with a canvas.Image by a specified angle
+// RotateCanvasImage rotates a canvas.Image by a given angle (in degrees).
 func RotateCanvasImage(img *canvas.Image, angle float64) (*canvas.Image, error) {
-	var src image.Image
-
-	switch v := img.Image.(type) {
-	case image.Image:
-		src = v
-	default:
-		// If the image wasn't already loaded (e.g. loaded from resource), load from the file path
-		if img.File != "" {
-			file, err := os.Open(img.File)
-			if err != nil {
-				return nil, err
-			}
-			defer file.Close()
-
-			decoded, _, err := image.Decode(file)
-			if err != nil {
-				return nil, err
-			}
-			src = decoded
-		} else {
-			return nil, nil // or return an error if you prefer
-		}
+	if img.Resource == nil {
+		return nil, errors.New("image has no resource")
 	}
 
-	// Rotate using the imaging package
-	rotated := imaging.Rotate(src, angle, color.Transparent)
+	// Load the image from the resource
+	reader := bytes.NewReader(img.Resource.Content())
 
-	// Create a new canvas.Image from the rotated image
-	newImg := canvas.NewImageFromImage(rotated)
-	newImg.SetMinSize(fyne.NewSize(float32(rotated.Bounds().Dx()), float32(rotated.Bounds().Dy())))
-	newImg.FillMode = canvas.ImageFillContain
+	srcImg, format, err := image.Decode(reader)
+	if err != nil {
+		return nil, err
+	}
 
-	return newImg, nil
+	// Rotate using the imaging library
+	rotated := imaging.Rotate(srcImg, angle, image.Transparent)
+
+	// Convert back to image bytes
+	var buf bytes.Buffer
+	switch format {
+	case "jpeg":
+		err = jpeg.Encode(&buf, rotated, nil)
+	default: // fallback to png
+		err = png.Encode(&buf, rotated)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	// Create a new StaticResource with rotated image
+	res := fyne.NewStaticResource("rotated.png", buf.Bytes())
+
+	// Update the canvas.Image
+	img.Resource = res
+	img.Refresh()
+
+	return img, nil
 }

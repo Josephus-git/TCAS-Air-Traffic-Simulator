@@ -38,7 +38,7 @@ func createPlane(planeCount int) Plane {
 	return Plane{
 		Serial:         util.GenerateSerialNumber(planeCount, "p"),
 		PlaneInFlight:  false,
-		CruiseSpeed:    5,
+		CruiseSpeed:    10,
 		FlightLog:      []Flight{},
 		TCASCapability: capability,
 	}
