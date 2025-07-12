@@ -18,7 +18,7 @@ type Airport struct {
 	Location           Coordinate
 	InitialPlaneAmount int
 	Runway             runway
-	Planes             []*Plane
+	Planes             []Plane
 	Mu                 sync.Mutex
 	ReceivingPlane     bool
 }
@@ -54,10 +54,10 @@ func generatePlaneCapacity(totalPlanes, planeGenerated int) int {
 	var randomNumber int
 	if totalPlanes < 20 {
 		planeToCreate := totalPlanes - planeGenerated
-		if planeToCreate <= 2 {
+		if planeToCreate <= 3 {
 			randomNumber = planeToCreate
 		} else {
-			randomNumber = rand.Intn(3)
+			randomNumber = rand.Intn(2) + 1
 		}
 
 	} else if totalPlanes < 100 {

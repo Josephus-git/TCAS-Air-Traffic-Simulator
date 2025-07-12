@@ -21,39 +21,7 @@ type TCASEngagement struct {
 }
 
 // CollisionThreshold defines the maximum distance (in units) at which two planes are considered to be in a collision course.
-const CollisionThreshold = 25
-
-// CheckPlaneStatusAtTime checks the status of a plane at a specific time based on its flight log.
-func checkPlaneStatusAtTime(p *Plane, checkTime time.Time) string {
-	if len(p.FlightLog) == 0 {
-		return ""
-	}
-
-	flight := p.FlightLog[len(p.FlightLog)-1]
-
-	if checkTime.After(flight.DestinationArrivalTime) {
-		// If checkTime is after arrival, plane has landed for this flight
-		return "landed or still landing"
-	}
-	if checkTime.After(flight.TakeoffTime) && checkTime.Before(flight.DestinationArrivalTime) {
-		// Plane is in transit during this flight
-		// We need a more granular check for "about to land"
-		// This simplified logic assumes "in transit" or "landed" for past times.
-		// For future "about to land" it would be based on calculation.
-		// Given the 3-second prior check, if it's already "about to land" it should be reflected in FlightStatus.
-		if flight.FlightStatus == "about to land" {
-			return "about to land"
-		}
-		return "in transit"
-	}
-	if checkTime.Equal(flight.TakeoffTime) {
-		return "taking off"
-	}
-	if checkTime.Equal(flight.DestinationArrivalTime) {
-		return "arriving"
-	}
-	return "parked/unknown" // If no flight matches the time, assume parked or not in a known flight.
-}
+const CollisionThreshold = 50
 
 // tcas detects potential mid-air collisions between a given plane (the one about to take off)
 // and other planes currently in flight. If a collision is predicted under specific conditions,
@@ -65,15 +33,14 @@ func checkPlaneStatusAtTime(p *Plane, checkTime time.Time) string {
 //	tcasLog: The file pointer for logging planes condition before going on the flight.
 func (plane *Plane) tcas(simState *SimulationState, tcasLog *os.File) []TCASEngagement {
 	planeFlight := plane.FlightLog[len(plane.FlightLog)-1]
-	simState.Mu.Lock() // Lock the simulation state to safely access PlanesInFlight
-	planesInFlight := simState.PlanesInFlight
-	simState.Mu.Unlock() // Release the lock after copying the slice
+	simState.Mu.Lock()         // Lock the simulation state to safely access PlanesInFlight
+	defer simState.Mu.Unlock() // Release the lock getting tcas
 
 	fmt.Fprintf(tcasLog, "%s TCAS: Plane %s (%v) is checking for conflicts before takeoff.\n\n",
 		simState.CurrentSimTime.Format("2006-01-02 15:04:05"), plane.Serial, plane.TCASCapability)
 
 	tcasEngagementSlice := []TCASEngagement{}
-	for _, otherPlane := range planesInFlight {
+	for _, otherPlane := range simState.PlanesInFlight {
 		// Skip checking against itself
 		if plane.Serial == otherPlane.Serial {
 			continue
@@ -85,27 +52,22 @@ func (plane *Plane) tcas(simState *SimulationState, tcasLog *os.File) []TCASEnga
 		}
 
 		// Find the current active flight for the otherPlane
-		plane.Mu.Lock()
 		otherPlaneFlight := otherPlane.FlightLog[len(otherPlane.FlightLog)-1]
-		plane.Mu.Unlock()
 
 		// Calculate Closest Approach Details between the potential flight paths
-		closestTime, distanceAtCA := planeFlight.GetClosestApproachDetails(otherPlaneFlight)
-
-		// Check the other plane's status at the closest approach
-		otherPlaneStatusAtCheckTime := checkPlaneStatusAtTime(otherPlane, closestTime)
+		distanceAtCA, closestTimeForPlane1, otherPlaneStatusAtCATime := planeFlight.GetClosestApproachDetails(simState, otherPlaneFlight)
 
 		// Condition 1: If otherPlane has landed, is about to land or at different flight altitudes, no collision concern from altitude difference
-		if otherPlaneStatusAtCheckTime == "landed or still landing" || otherPlaneStatusAtCheckTime == "about to land" || otherPlaneFlight.CruisingAltitude != planeFlight.CruisingAltitude {
+		if otherPlaneStatusAtCATime == "landed or still landing" || otherPlaneStatusAtCATime == "about to land" || otherPlaneFlight.CruisingAltitude != planeFlight.CruisingAltitude {
 			fmt.Fprintf(tcasLog, "%s TCAS: Plane %s's flight path %s and Plane %s's flight path %s have closest approach (%.2f units at %v), but no worries: Other plane status is '%s' or different altitude.\n\n",
-				simState.CurrentSimTime.Format("15:04:05"), plane.Serial, planeFlight.FlightID, otherPlane.Serial, otherPlaneFlight.FlightID, distanceAtCA, closestTime.Format("15:04:05"), otherPlaneStatusAtCheckTime)
+				simState.CurrentSimTime.Format("15:04:05"), plane.Serial, planeFlight.FlightID, otherPlane.Serial, otherPlaneFlight.FlightID, distanceAtCA, closestTimeForPlane1.Format("15:04:05"), otherPlaneStatusAtCATime)
 			continue
 		}
 
 		// Condition 2: Check if collision distance threshold is met
 		if distanceAtCA < CollisionThreshold {
 			fmt.Fprintf(tcasLog, "%s TCAS ALERT: Potential collision detected between Plane %s (TCAS: %v) and Plane %s (TCAS: %v). Closest approach: %.2f units at %v.\n\n",
-				simState.CurrentSimTime.Format("15:04:05"), plane.Serial, plane.TCASCapability, otherPlane.Serial, otherPlane.TCASCapability, distanceAtCA, closestTime.Format("15:04:05"))
+				simState.CurrentSimTime.Format("15:04:05"), plane.Serial, plane.TCASCapability, otherPlane.Serial, otherPlane.TCASCapability, distanceAtCA, closestTimeForPlane1.Format("15:04:05"))
 
 			// Collision Resolution based on TCAS capabilities
 			shouldCrash := false
@@ -139,7 +101,7 @@ func (plane *Plane) tcas(simState *SimulationState, tcasLog *os.File) []TCASEnga
 					FlightID:         planeFlight.FlightID,
 					PlaneSerial:      plane.Serial,
 					OtherPlaneSerial: otherPlane.Serial,
-					TimeOfEngagement: closestTime,
+					TimeOfEngagement: closestTimeForPlane1,
 					WillCrash:        true,
 				}
 				tcasEngagementSlice = append(tcasEngagementSlice, newTcasEngagement)
@@ -150,7 +112,7 @@ func (plane *Plane) tcas(simState *SimulationState, tcasLog *os.File) []TCASEnga
 				FlightID:         planeFlight.FlightID,
 				PlaneSerial:      plane.Serial,
 				OtherPlaneSerial: otherPlane.Serial,
-				TimeOfEngagement: closestTime,
+				TimeOfEngagement: closestTimeForPlane1,
 				WillCrash:        false,
 			}
 			tcasEngagementSlice = append(tcasEngagementSlice, newTcasEngagement)

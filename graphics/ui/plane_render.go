@@ -24,7 +24,6 @@ type PlaneRender struct {
 	Image          *canvas.Image
 	FlightPathLine *canvas.Line   // To draw the flight path
 	TCASCircle     *canvas.Circle // Circle for TCAS engagement visualization
-
 }
 
 // AddPlaneToRender adds a new PlaneRender object to the simulation area.

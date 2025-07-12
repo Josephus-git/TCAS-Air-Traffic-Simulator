@@ -78,7 +78,7 @@ func StartSimulation(simState *SimulationState, durationMinutes time.Duration, f
 	go func(globalSimState *SimulationState, ctx context.Context) {
 		defer wg.Done()
 
-		for i := 0; simState.SimIsRunning; i++ {
+		for simState.SimIsRunning {
 			select {
 			case <-ctx.Done(): // Check if the main simulation context is done
 				log.Printf("Flight monitor stopping.")
@@ -105,9 +105,9 @@ func StartSimulation(simState *SimulationState, durationMinutes time.Duration, f
 			// and then process the copy. This prevents deadlocks if Land() tries to acquire
 			// other locks (like airport.Mu) while globalSimState.Mu is held.
 			globalSimState.Mu.Lock()
-			planesToLand := []*Plane{}
+			planesToLand := []Plane{}
 			type monitorTCASEngagement struct {
-				plane      *Plane
+				plane      Plane
 				engagement TCASEngagement
 			}
 			planesToEngageTCASManeuver := []monitorTCASEngagement{}
@@ -189,7 +189,7 @@ func StartSimulation(simState *SimulationState, durationMinutes time.Duration, f
 				}
 
 				// Find the corresponding plane to engage the tcas
-				var otherPlane *Plane
+				var otherPlane Plane
 				for _, plane := range globalSimState.PlanesInFlight {
 					if plane.Serial == tcasEngagement.engagement.OtherPlaneSerial {
 						otherPlane = plane

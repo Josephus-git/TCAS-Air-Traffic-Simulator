@@ -31,7 +31,7 @@ const Epsilon = 0.1 // meters, adjust as needed for precision of coordinates
 //
 //	error: An error if the landing cannot proceed (e.g., wrong destination,
 //	       runways are currently in use, or the plane is not found in flight).
-func (ap *Airport) Land(plane *Plane, simState *SimulationState, f *os.File) error {
+func (ap *Airport) Land(plane Plane, simState *SimulationState, f *os.File) error {
 	log.Printf("Plane %s is attempting to land at Airport %s (%s).\n\n",
 		plane.Serial, ap.Serial, ap.Location.String())
 	fmt.Fprintf(f, "%s Plane %s is attempting to land at Airport %s (%s).\n\n",
@@ -110,7 +110,7 @@ func (ap *Airport) Land(plane *Plane, simState *SimulationState, f *os.File) err
 	simState.Mu.Unlock()
 
 	// 8. Update the plane's status to reflect it's no longer in flight.
-	plane.PlaneInFlight = false // Update the local copy
+	plane.PlaneInFlight = false
 	plane.CurrentTCASEngagements = []TCASEngagement{}
 
 	plane.FlightLog[len(plane.FlightLog)-1].FlightStatus = "landed"

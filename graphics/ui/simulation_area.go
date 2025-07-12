@@ -42,8 +42,8 @@ type SimulationArea struct {
 	mainWindow fyne.Window
 
 	// Callbacks for plane take-off and landing notifications from aviation package
-	RegisterPlaneTakeOffCallback func(*aviation.Plane)
-	RegisterPlaneLandCallback    func(string) // Pass plane serial for removal
+	PlaneTakeOffCallback func(*aviation.Plane)
+	PlaneLandCallback    func(string) // Pass plane serial for removal
 
 	// Timer for updating plane positions
 	animationTicker *time.Ticker
@@ -93,8 +93,8 @@ func NewSimulationArea(simState *aviation.SimulationState, mainWindow fyne.Windo
 	sa.generateAirportsToRender(simState)
 
 	// NEW: Register callbacks with the simulation state
-	simState.RegisterPlaneTakeOffCallback(sa.AddPlaneToRender)
-	simState.RegisterPlaneLandCallback(sa.RemovePlaneFromRender)
+	simState.OnPlaneTakeOffCallback = sa.AddPlaneToRender
+	simState.OnPlaneLandCallback = sa.RemovePlaneFromRender
 
 	// NEW: Start a ticker for continuous animation updates
 	sa.animationTicker = time.NewTicker(50 * time.Millisecond) // Update 20 times per second
@@ -227,5 +227,6 @@ func (sa *SimulationArea) ClearAllPlanes() {
 		}
 	}
 	sa.planesInFlight = []*PlaneRender{} // Reset the slice
+	sa.airports = []*AirportRender{}
 	sa.Refresh()
 }

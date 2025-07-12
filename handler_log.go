@@ -93,7 +93,7 @@ func logAirplanesDetails(simState *aviation.SimulationState) {
 	} else {
 		simTime = simState.SimEndedTime
 	}
-	Planes := []*aviation.Plane{}
+	Planes := []aviation.Plane{}
 
 	for _, ap := range simState.Airports {
 		Planes = append(Planes, ap.Planes...)
@@ -198,7 +198,7 @@ func logFlightDetails(flight aviation.Flight, simTime time.Time, f *os.File) {
 	fmt.Fprintf(f, "    Actual Landing Time: %s\n", actualLandingTime)
 
 	// calculate progress
-	progress := flight.GetFlightProgress(simTime)
+	progress := flight.GetFlightProgressString(simTime)
 
 	fmt.Fprintf(f, "    Progress: %s\n", progress)
 	fmt.Fprintln(f, "    ---------------------------------------")
