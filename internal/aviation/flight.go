@@ -26,23 +26,46 @@ type FlightPath struct {
 
 // GetFlightProgress calculates Progress made by plane in transit
 func (f Flight) GetFlightProgress(simTime time.Time) string {
+	if f.TakeoffTime.IsZero() {
+		return "N/A (Flight not yet initiated)"
+	}
 
-	if simTime.After(f.DestinationArrivalTime) && f.FlightStatus == "landed" {
+	switch {
+	case simTime.After(f.DestinationArrivalTime) && f.FlightStatus == "landed":
 		return "100% (Landed)"
-	} else if simTime.After(f.DestinationArrivalTime) && f.FlightStatus == "about to land" {
+	case simTime.After(f.DestinationArrivalTime) && f.FlightStatus == "about to land":
 		return "100% (About to land)"
-	} else if simTime.After(f.TakeoffTime) && simTime.Before(f.DestinationArrivalTime) {
-		totalDuration := f.DestinationArrivalTime.Sub(f.TakeoffTime)
-		elapsedDuration := simTime.Sub(f.TakeoffTime)
-
-		// Ensure totalDuration is not zero to prevent division by zero
-		if totalDuration > 0 {
-			completionPercentage := (float64(elapsedDuration) / float64(totalDuration)) * 100
-			return fmt.Sprintf("%.2f%% (As at %s)", completionPercentage, simTime.Format("15:04:05"))
-		} else {
-			return "0% (Invalid flight duration)"
+	case simTime.After(f.TakeoffTime) && simTime.Before(f.DestinationArrivalTime):
+		total := f.DestinationArrivalTime.Sub(f.TakeoffTime)
+		elapsed := simTime.Sub(f.TakeoffTime)
+		if total > 0 {
+			pct := (float64(elapsed) / float64(total)) * 100
+			return fmt.Sprintf("%.2f%% (As at %s)", pct, simTime.Format("15:04:05"))
 		}
-	} else {
+		return "0% (Invalid flight duration)"
+	default:
 		return "0% (Plane about to take off or still taking off)"
 	}
+
+}
+
+// GetClosestApproachDetails calculates the time and minimum Distance at which two planes will be closest during their respective flights.
+func (f1 Flight) GetClosestApproachDetails(f2 Flight) (closestTime time.Time, distanceBetweenPlanesatCA float64) {
+	flight1ClosestCoord, flight2ClosestCoord := FindClosestApproachDuringTransit(f1.FlightSchedule, f2.FlightSchedule)
+
+	flight1Distance := Distance(f1.FlightSchedule.Depature, f1.FlightSchedule.Destination)
+	if flight1Distance == 0 {
+		return f1.TakeoffTime, Distance(f1.FlightSchedule.Depature, f2.FlightSchedule.Depature)
+	}
+
+	distBtwDepatureAndClosestApproachForFlight1 := Distance(f1.FlightSchedule.Depature, flight1ClosestCoord)
+
+	f1fractionofCA := distBtwDepatureAndClosestApproachForFlight1 / flight1Distance
+
+	totalFlightDuration1 := f1.DestinationArrivalTime.Sub(f1.TakeoffTime)
+	closestTime = f1.TakeoffTime.Add(time.Duration(float64(totalFlightDuration1) * f1fractionofCA))
+
+	distanceBetweenPlanesatCA = Distance(flight1ClosestCoord, flight2ClosestCoord)
+
+	return closestTime, distanceBetweenPlanesatCA
 }

@@ -159,11 +159,13 @@ func StartFyne(cfg *config.Config, simState *aviation.SimulationState, f, tcasLo
 			go aviation.StartSimulation(simState, time.Duration(durationOfSimulation), f, tcasLog)
 
 			// Create and show the simulation window
-			ui.GraphicsSimulationInit(simState, simulationWindow, inputWindow)
+			if !cfg.FirstRun {
+				ui.GraphicsSimulationInit(simState, simulationWindow, inputWindow)
+			}
 
 			simulationWindow.Show()
 			inputWindow.Hide()
-			cfg.FirstRun = false
+
 			simState.SimWindowOpened = true
 			simState.SimIsRunning = true
 			log.Printf("Starting simulation with %d airplanes.", numAirPlanes)
@@ -202,6 +204,7 @@ func StartFyne(cfg *config.Config, simState *aviation.SimulationState, f, tcasLo
 }
 
 func startPartition(cfg *config.Config, simState *aviation.SimulationState) {
+	cfg.FirstRun = false
 	scanner := bufio.NewScanner(os.Stdin)
 
 	for {

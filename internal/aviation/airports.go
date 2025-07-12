@@ -18,7 +18,7 @@ type Airport struct {
 	Location           Coordinate
 	InitialPlaneAmount int
 	Runway             runway
-	Planes             []Plane
+	Planes             []*Plane
 	Mu                 sync.Mutex
 	ReceivingPlane     bool
 }
@@ -130,6 +130,7 @@ func startAirports(simState *SimulationState, ctx context.Context, wg *sync.Wait
 				} else {
 					airport.Mu.Unlock() // Always ensure lock is released
 					// log.Printf("Airport %s has no planes to take off.", airport.Serial)
+					time.Sleep(1 * time.Second)
 				}
 			}
 		}(ap) // Pass airport pointer

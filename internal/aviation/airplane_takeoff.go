@@ -30,17 +30,24 @@ const TakeoffDuration = 5 * time.Second
 //
 //	*Flight: A pointer to the newly created Flight struct representing this takeoff.
 //	error: An error if the takeoff cannot be initiated (e.g., no available runways, plane not found).
-func (airport *Airport) TakeOff(plane Plane, simState *SimulationState, f, tcasLog *os.File) (*Flight, error) {
+func (airport *Airport) TakeOff(plane *Plane, simState *SimulationState, f, tcasLog *os.File) (*Flight, error) {
 	log.Printf("Plane %s (Cruise Speed: %.2fm/s) is attempting to takeoff from Airport %s %s\n\n",
 		plane.Serial, plane.CruiseSpeed, airport.Serial, airport.Location.String())
 	fmt.Fprintf(f, "%s Plane %s (Cruise Speed: %.2fm/s) is attempting to takeoff from Airport %s %s\n\n",
-		time.Now().Format("2006-01-02 15:04:05"), plane.Serial, plane.CruiseSpeed, airport.Serial, airport.Location.String())
+		simState.CurrentSimTime.Format("2006-01-02 15:04:05"), plane.Serial, plane.CruiseSpeed, airport.Serial, airport.Location.String())
 
-	for i := 0; airport.ReceivingPlane && simState.SimIsRunning; i++ {
+	for {
+		airport.Mu.Lock()
+		receiving := airport.ReceivingPlane
+		airport.Mu.Unlock()
+
+		if !receiving || !simState.SimIsRunning {
+			break
+		}
 		log.Printf("\nairport %s is currently receiving a landing plane; plane %s cannot takeoff until all landing operations are over\n\n",
 			airport.Serial, plane.Serial)
 		fmt.Fprintf(f, "%s \nairport %s is currently receiving a landing plane; plane %s cannot takeoff until all landing operations are over\n\n",
-			time.Now().Format("2006-01-02 15:04:05"), airport.Serial, plane.Serial)
+			simState.CurrentSimTime.Format("2006-01-02 15:04:05"), airport.Serial, plane.Serial)
 		time.Sleep(LandingDuration)
 	}
 
@@ -52,7 +59,7 @@ func (airport *Airport) TakeOff(plane Plane, simState *SimulationState, f, tcasL
 			log.Printf("\nairport %s has no available runways for takeoff (all %d of %d runway(s) in use)\n\n",
 				airport.Serial, airport.Runway.noOfRunwayinUse, airport.Runway.numberOfRunway)
 			fmt.Fprintf(f, "%s \nairport %s has no available runways for takeoff (all %d of %d runway(s) in use)\n\n",
-				time.Now().Format("2006-01-02 15:04:05"), airport.Serial, airport.Runway.noOfRunwayinUse, airport.Runway.numberOfRunway)
+				simState.CurrentSimTime.Format("2006-01-02 15:04:05"), airport.Serial, airport.Runway.noOfRunwayinUse, airport.Runway.numberOfRunway)
 			time.Sleep(TakeoffDuration)
 		} else {
 			airport.Mu.Unlock()
@@ -70,7 +77,7 @@ func (airport *Airport) TakeOff(plane Plane, simState *SimulationState, f, tcasL
 	log.Printf("Plane %s (Cruise Speed: %.2fm/s) is taking off from Airport %s %s\n\n",
 		plane.Serial, plane.CruiseSpeed, airport.Serial, airport.Location.String())
 	fmt.Fprintf(f, "%s Plane %s (Cruise Speed: %.2fm/s) is taking off from Airport %s %s\n\n",
-		time.Now().Format("2006-01-02 15:04:05"), plane.Serial, plane.CruiseSpeed, airport.Serial, airport.Location.String())
+		simState.CurrentSimTime.Format("2006-01-02 15:04:05"), plane.Serial, plane.CruiseSpeed, airport.Serial, airport.Location.String())
 
 	time.Sleep(TakeoffDuration)
 
@@ -115,7 +122,7 @@ func (airport *Airport) TakeOff(plane Plane, simState *SimulationState, f, tcasL
 	// Assuming CruiseSpeed is in units per second, and distance is in those same units.
 	flightDuration := time.Duration(flightDistance/plane.CruiseSpeed) * time.Second
 
-	takeoffTime := time.Now()
+	takeoffTime := simState.CurrentSimTime
 	landingTime := takeoffTime.Add(flightDuration)
 	var cruisingAltitude float64
 	if simState.DifferentAltitudes {
@@ -154,12 +161,12 @@ func (airport *Airport) TakeOff(plane Plane, simState *SimulationState, f, tcasL
 	log.Printf("Plane %s (Cruise Speed: %.2fm/s) took off from Airport %s %s, heading to Airport %s %s. Estimated landing at %s.\n\n",
 		plane.Serial, plane.CruiseSpeed, airport.Serial, airport.Location.String(), destinationAirport.Serial, destinationAirport.Location.String(), landingTime.Format("15:04:05"))
 	fmt.Fprintf(f, "%s Plane %s (Cruise Speed: %.2fm/s) took off from Airport %s %s, heading to Airport %s %s. Estimated landing at %s.\n\n",
-		time.Now().Format("2006-01-02 15:04:05"), plane.Serial, plane.CruiseSpeed, airport.Serial, airport.Location.String(), destinationAirport.Serial, destinationAirport.Location.String(), landingTime.Format("15:04:05"))
+		simState.CurrentSimTime.Format("2006-01-02 15:04:05"), plane.Serial, plane.CruiseSpeed, airport.Serial, airport.Location.String(), destinationAirport.Serial, destinationAirport.Location.String(), landingTime.Format("15:04:05"))
 
 	// Call the UI callback if registered
 	if simState.OnPlaneTakeOffCallback != nil {
 		fyne.Do(func() { // Ensure UI updates are on main goroutine
-			simState.OnPlaneTakeOffCallback(&plane)
+			simState.OnPlaneTakeOffCallback(plane)
 		})
 	}
 

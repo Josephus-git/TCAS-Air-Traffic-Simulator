@@ -31,11 +31,11 @@ const Epsilon = 0.1 // meters, adjust as needed for precision of coordinates
 //
 //	error: An error if the landing cannot proceed (e.g., wrong destination,
 //	       runways are currently in use, or the plane is not found in flight).
-func (ap *Airport) Land(plane Plane, simState *SimulationState, f *os.File) error {
+func (ap *Airport) Land(plane *Plane, simState *SimulationState, f *os.File) error {
 	log.Printf("Plane %s is attempting to land at Airport %s (%s).\n\n",
 		plane.Serial, ap.Serial, ap.Location.String())
 	fmt.Fprintf(f, "%s Plane %s is attempting to land at Airport %s (%s).\n\n",
-		time.Now().Format("2006-01-02 15:04:05"), plane.Serial, ap.Serial, ap.Location.String())
+		simState.CurrentSimTime.Format("2006-01-02 15:04:05"), plane.Serial, ap.Serial, ap.Location.String())
 
 	// first we run a loop to make sure a plane is not trying to land in an airport where
 	// another airplane is trying to take off
@@ -43,13 +43,13 @@ func (ap *Airport) Land(plane Plane, simState *SimulationState, f *os.File) erro
 		log.Printf("\nairport %s has %d runway(s) currently in use; plane %s cannot land until all runways are free\n\n",
 			ap.Serial, ap.Runway.noOfRunwayinUse, plane.Serial)
 		fmt.Fprintf(f, "%s\nairport %s has %d runway(s) currently in use; plane %s cannot land until all runways are free\n\n",
-			time.Now().Format("2006-01-02 15:04:05"), ap.Serial, ap.Runway.noOfRunwayinUse, plane.Serial)
+			simState.CurrentSimTime.Format("2006-01-02 15:04:05"), ap.Serial, ap.Runway.noOfRunwayinUse, plane.Serial)
 		time.Sleep(TakeoffDuration)
 	}
 	log.Printf("Plane %s is now landing at Airport %s (%s).\n\n",
 		plane.Serial, ap.Serial, ap.Location.String())
 	fmt.Fprintf(f, "%sPlane %s is now landing at Airport %s (%s).\n\n",
-		time.Now().Format("2006-01-02 15:04:05"), plane.Serial, ap.Serial, ap.Location.String())
+		simState.CurrentSimTime.Format("2006-01-02 15:04:05"), plane.Serial, ap.Serial, ap.Location.String())
 
 	// Mark a runway as in use for the landing.
 	// This lock the runway so no plane can take off for the landing duration
@@ -58,7 +58,11 @@ func (ap *Airport) Land(plane Plane, simState *SimulationState, f *os.File) erro
 	ap.Runway.noOfRunwayinUse++
 	ap.ReceivingPlane = true
 	ap.Mu.Unlock()
-	defer func() { ap.ReceivingPlane = false }()
+	defer func() {
+		ap.Mu.Lock()
+		ap.ReceivingPlane = false
+		ap.Mu.Unlock()
+	}()
 	time.Sleep(LandingDuration)
 
 	// Retrieve the current flight details from the plane's log.
@@ -90,6 +94,7 @@ func (ap *Airport) Land(plane Plane, simState *SimulationState, f *os.File) erro
 	ap.Runway.noOfRunwayinUse--
 
 	// 7. Remove the plane from the global `simState.PlanesInFlight` list.
+	simState.Mu.Lock()
 	planeInFlightIndex := -1
 	for i, p := range simState.PlanesInFlight {
 		if p.Serial == plane.Serial {
@@ -97,22 +102,19 @@ func (ap *Airport) Land(plane Plane, simState *SimulationState, f *os.File) erro
 			break
 		}
 	}
-
 	if planeInFlightIndex == -1 {
-		// This scenario should ideally not happen if the simulation logic is robust,
-		// as a plane should only be landed if it's currently in flight.
-		return fmt.Errorf("plane %s not found in the global PlanesInFlight list; cannot complete landing at airport %s", plane.Serial, ap.Serial)
+		simState.Mu.Unlock() // Manual unlock before return
+		return fmt.Errorf("plane %s not found in the global PlanesInFlight list", plane.Serial)
 	}
-
-	// Remove the plane from the slice without changing its capacity.
 	simState.PlanesInFlight = append(simState.PlanesInFlight[:planeInFlightIndex], simState.PlanesInFlight[planeInFlightIndex+1:]...)
+	simState.Mu.Unlock()
 
 	// 8. Update the plane's status to reflect it's no longer in flight.
 	plane.PlaneInFlight = false // Update the local copy
 	plane.CurrentTCASEngagements = []TCASEngagement{}
 
 	plane.FlightLog[len(plane.FlightLog)-1].FlightStatus = "landed"
-	plane.FlightLog[len(plane.FlightLog)-1].ActualLandingTime = time.Now()
+	plane.FlightLog[len(plane.FlightLog)-1].ActualLandingTime = simState.CurrentSimTime
 
 	// 9. Add the now-landed plane to the destination airport's list of parked planes.
 	ap.Planes = append(ap.Planes, plane) // Append the updated copy of the plane
@@ -120,7 +122,7 @@ func (ap *Airport) Land(plane Plane, simState *SimulationState, f *os.File) erro
 	log.Printf("Plane %s successfully landed at Airport %s (%s). It is now parked.\n\n",
 		plane.Serial, ap.Serial, ap.Location.String())
 	fmt.Fprintf(f, "%sPlane %s successfully landed at Airport %s (%s). It is now parked.\n\n",
-		time.Now().Format("2006-01-02 15:04:05"), plane.Serial, ap.Serial, ap.Location.String())
+		simState.CurrentSimTime.Format("2006-01-02 15:04:05"), plane.Serial, ap.Serial, ap.Location.String())
 
 	// Call the UI callback if registered
 	if simState.OnPlaneLandCallback != nil {

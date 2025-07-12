@@ -22,7 +22,9 @@ import (
 type PlaneRender struct {
 	ActualPlane    *aviation.Plane
 	Image          *canvas.Image
-	FlightPathLine *canvas.Line // To draw the flight path
+	FlightPathLine *canvas.Line   // To draw the flight path
+	TCASCircle     *canvas.Circle // Circle for TCAS engagement visualization
+
 }
 
 // AddPlaneToRender adds a new PlaneRender object to the simulation area.
@@ -36,7 +38,8 @@ func (sa *SimulationArea) AddPlaneToRender(plane *aviation.Plane) {
 	rotation := planeOrientation(currentFlight.FlightSchedule.Depature, currentFlight.FlightSchedule.Destination)
 	rotatedImg, err := RotateCanvasImage(image, rotation)
 	if err != nil {
-		log.Fatal(err)
+		log.Printf("Failed to rotate plane image: %v", err)
+		return // silently skip rendering this plane
 	}
 
 	var line *canvas.Line
@@ -57,7 +60,11 @@ func (sa *SimulationArea) AddPlaneToRender(plane *aviation.Plane) {
 		ActualPlane:    plane,
 		Image:          rotatedImg,
 		FlightPathLine: line,
+		TCASCircle:     canvas.NewCircle(color.Transparent),
 	}
+
+	planeRender.TCASCircle.StrokeWidth = 3 // Set a default stroke width
+	planeRender.TCASCircle.Hidden = true   // Start hidden
 
 	sa.planesInFlight = append(sa.planesInFlight, planeRender)
 	// Refresh renderer to include new objects
@@ -76,6 +83,9 @@ func (sa *SimulationArea) RemovePlaneFromRender(planeSerial string) {
 			// them immediately might be safer.
 			p.Image.Hide()
 			p.FlightPathLine.Hide()
+			if p.TCASCircle != nil { // Hide the circle if it exists
+				p.TCASCircle.Hide()
+			}
 			break
 		}
 	}

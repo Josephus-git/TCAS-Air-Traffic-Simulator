@@ -47,6 +47,7 @@ type SimulationArea struct {
 
 	// Timer for updating plane positions
 	animationTicker *time.Ticker
+	simState        *aviation.SimulationState
 }
 
 // Ensure SimulationArea implements the necessary interfaces for a widget,
@@ -81,6 +82,7 @@ func NewSimulationArea(simState *aviation.SimulationState, mainWindow fyne.Windo
 		zoomScales:          []float32{0.25, 0.5, 1.0, 2.0, 3.0}, // Scales (relative to initial size)
 		mainWindow:          mainWindow,
 		planesInFlight:      []*PlaneRender{}, // Initialize empty slice
+		simState:            simState,
 	}
 	sa.statusLabel.Alignment = fyne.TextAlignCenter
 	sa.statusLabel.TextSize = 8
@@ -98,6 +100,9 @@ func NewSimulationArea(simState *aviation.SimulationState, mainWindow fyne.Windo
 	sa.animationTicker = time.NewTicker(50 * time.Millisecond) // Update 20 times per second
 	go func() {
 		for range sa.animationTicker.C {
+			simState.Mu.Lock()
+			simState.CurrentSimTime = time.Now()
+			simState.Mu.Unlock()
 			if sa.Size().IsZero() { // Don't refresh if widget hasn't been laid out yet
 				continue
 			}
@@ -206,5 +211,21 @@ func (sa *SimulationArea) ZoomOut() {
 	if sa.zoomLevel > 0 {
 		sa.zoomLevel--
 	}
+	sa.Refresh()
+}
+
+func (sa *SimulationArea) ClearAllPlanes() {
+	for _, p := range sa.planesInFlight {
+		if p.Image != nil {
+			p.Image.Hide()
+		}
+		if p.FlightPathLine != nil {
+			p.FlightPathLine.Hide()
+		}
+		if p.TCASCircle != nil {
+			p.TCASCircle.Hide()
+		}
+	}
+	sa.planesInFlight = []*PlaneRender{} // Reset the slice
 	sa.Refresh()
 }

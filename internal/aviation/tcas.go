@@ -21,10 +21,14 @@ type TCASEngagement struct {
 }
 
 // CollisionThreshold defines the maximum distance (in units) at which two planes are considered to be in a collision course.
-const CollisionThreshold = 5
+const CollisionThreshold = 25
 
 // CheckPlaneStatusAtTime checks the status of a plane at a specific time based on its flight log.
-func checkPlaneStatusAtTime(p Plane, checkTime time.Time) string {
+func checkPlaneStatusAtTime(p *Plane, checkTime time.Time) string {
+	if len(p.FlightLog) == 0 {
+		return ""
+	}
+
 	flight := p.FlightLog[len(p.FlightLog)-1]
 
 	if checkTime.After(flight.DestinationArrivalTime) {
@@ -59,14 +63,14 @@ func checkPlaneStatusAtTime(p Plane, checkTime time.Time) string {
 //
 //	plane: The plane attempting to take off.
 //	tcasLog: The file pointer for logging planes condition before going on the flight.
-func (plane Plane) tcas(simState *SimulationState, tcasLog *os.File) []TCASEngagement {
+func (plane *Plane) tcas(simState *SimulationState, tcasLog *os.File) []TCASEngagement {
 	planeFlight := plane.FlightLog[len(plane.FlightLog)-1]
 	simState.Mu.Lock() // Lock the simulation state to safely access PlanesInFlight
 	planesInFlight := simState.PlanesInFlight
 	simState.Mu.Unlock() // Release the lock after copying the slice
 
 	fmt.Fprintf(tcasLog, "%s TCAS: Plane %s (%v) is checking for conflicts before takeoff.\n\n",
-		time.Now().Format("2006-01-02 15:04:05"), plane.Serial, plane.TCASCapability)
+		simState.CurrentSimTime.Format("2006-01-02 15:04:05"), plane.Serial, plane.TCASCapability)
 
 	tcasEngagementSlice := []TCASEngagement{}
 	for _, otherPlane := range planesInFlight {
@@ -81,7 +85,9 @@ func (plane Plane) tcas(simState *SimulationState, tcasLog *os.File) []TCASEngag
 		}
 
 		// Find the current active flight for the otherPlane
+		plane.Mu.Lock()
 		otherPlaneFlight := otherPlane.FlightLog[len(otherPlane.FlightLog)-1]
+		plane.Mu.Unlock()
 
 		// Calculate Closest Approach Details between the potential flight paths
 		closestTime, distanceAtCA := planeFlight.GetClosestApproachDetails(otherPlaneFlight)
@@ -92,14 +98,14 @@ func (plane Plane) tcas(simState *SimulationState, tcasLog *os.File) []TCASEngag
 		// Condition 1: If otherPlane has landed, is about to land or at different flight altitudes, no collision concern from altitude difference
 		if otherPlaneStatusAtCheckTime == "landed or still landing" || otherPlaneStatusAtCheckTime == "about to land" || otherPlaneFlight.CruisingAltitude != planeFlight.CruisingAltitude {
 			fmt.Fprintf(tcasLog, "%s TCAS: Plane %s's flight path %s and Plane %s's flight path %s have closest approach (%.2f units at %v), but no worries: Other plane status is '%s' or different altitude.\n\n",
-				time.Now().Format("15:04:05"), plane.Serial, planeFlight.FlightID, otherPlane.Serial, otherPlaneFlight.FlightID, distanceAtCA, closestTime.Format("15:04:05"), otherPlaneStatusAtCheckTime)
+				simState.CurrentSimTime.Format("15:04:05"), plane.Serial, planeFlight.FlightID, otherPlane.Serial, otherPlaneFlight.FlightID, distanceAtCA, closestTime.Format("15:04:05"), otherPlaneStatusAtCheckTime)
 			continue
 		}
 
 		// Condition 2: Check if collision distance threshold is met
 		if distanceAtCA < CollisionThreshold {
 			fmt.Fprintf(tcasLog, "%s TCAS ALERT: Potential collision detected between Plane %s (TCAS: %v) and Plane %s (TCAS: %v). Closest approach: %.2f units at %v.\n\n",
-				time.Now().Format("15:04:05"), plane.Serial, plane.TCASCapability, otherPlane.Serial, otherPlane.TCASCapability, distanceAtCA, closestTime.Format("15:04:05"))
+				simState.CurrentSimTime.Format("15:04:05"), plane.Serial, plane.TCASCapability, otherPlane.Serial, otherPlane.TCASCapability, distanceAtCA, closestTime.Format("15:04:05"))
 
 			// Collision Resolution based on TCAS capabilities
 			shouldCrash := false
@@ -107,7 +113,7 @@ func (plane Plane) tcas(simState *SimulationState, tcasLog *os.File) []TCASEngag
 			if plane.TCASCapability == TCASPerfect && otherPlane.TCASCapability == TCASPerfect {
 				// Both perfect, no crash
 				fmt.Fprintf(tcasLog, "%s TCAS: Both planes have perfect TCAS. Collision averted between %s and %s.\n\n",
-					time.Now().Format("2006-01-02 15:04:05"), plane.Serial, otherPlane.Serial)
+					simState.CurrentSimTime.Format("2006-01-02 15:04:05"), plane.Serial, otherPlane.Serial)
 				shouldCrash = false
 			} else if (plane.TCASCapability == TCASPerfect && otherPlane.TCASCapability == TCASFaulty) ||
 				(plane.TCASCapability == TCASFaulty && otherPlane.TCASCapability == TCASPerfect) {
@@ -116,20 +122,20 @@ func (plane Plane) tcas(simState *SimulationState, tcasLog *os.File) []TCASEngag
 					shouldCrash = true
 				} else {
 					fmt.Fprintf(tcasLog, "%s TCAS: One perfect, one faulty TCAS. Collision narrowly averted between %s and %s.\n\n",
-						time.Now().Format("15:04:05"), plane.Serial, otherPlane.Serial)
+						simState.CurrentSimTime.Format("15:04:05"), plane.Serial, otherPlane.Serial)
 				}
 			} else if plane.TCASCapability == TCASFaulty && otherPlane.TCASCapability == TCASFaulty {
 				if rand.Float64() < 0.5 {
 					shouldCrash = true
 				} else {
 					fmt.Fprintf(tcasLog, "%s TCAS: Two faulty TCAS. Collision narrowly averted between %s and %s.\n\n",
-						time.Now().Format("15:04:05"), plane.Serial, otherPlane.Serial)
+						simState.CurrentSimTime.Format("15:04:05"), plane.Serial, otherPlane.Serial)
 				}
 			}
 
 			if shouldCrash {
 				newTcasEngagement := TCASEngagement{
-					EngagementID:     plane.Serial + util.GenerateSerialNumber(len(plane.TCASEngagementRecords), "e"),
+					EngagementID:     fmt.Sprintf("%s-%d", plane.Serial, time.Now().UnixNano()),
 					FlightID:         planeFlight.FlightID,
 					PlaneSerial:      plane.Serial,
 					OtherPlaneSerial: otherPlane.Serial,

@@ -17,12 +17,13 @@ import (
 // SimulationState holds the collection of live domain objects and their current state
 type SimulationState struct {
 	Airports           []*Airport
-	PlanesInFlight     []Plane
+	PlanesInFlight     []*Plane
 	Mu                 sync.Mutex
 	DifferentAltitudes bool
 	SimIsRunning       bool
 	SimEndedTime       time.Time
 	SimWindowOpened    bool
+	CurrentSimTime     time.Time
 
 	// Callbacks for UI updates
 	OnPlaneTakeOffCallback func(*Plane)

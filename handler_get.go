@@ -74,7 +74,7 @@ func getAirPlanesDetails(simState *aviation.SimulationState) {
 	} else {
 		simTime = simState.SimEndedTime
 	}
-	Planes := []aviation.Plane{}
+	Planes := []*aviation.Plane{}
 
 	for _, airport := range simState.Airports {
 		Planes = append(Planes, airport.Planes...)

@@ -11,7 +11,7 @@ import (
 
 // Simulation parameters
 // FlightMonitorInterval is how often the monitor checks planes for landing time
-const FlightMonitorInterval = 500 * time.Millisecond
+const FlightMonitorInterval = 100 * time.Millisecond
 
 var FlightNumberCount int
 
@@ -30,6 +30,7 @@ func StartSimulation(simState *SimulationState, durationMinutes time.Duration, f
 	defer func() { simState.SimIsRunning = false }()
 	defer func() { simState.SimEndedTime = time.Now() }()
 	defer func() { fmt.Print("\nTCAS-simulator > ") }()
+
 	defer func() { f.Close() }()
 	log.Printf("\n--- TCAS Simulation Started for %d minute(s) ---", durationMinutes)
 	fmt.Fprintf(f, "%s\n--- TCAS Simulation Started for %d minute(s) ---\n",
@@ -99,26 +100,23 @@ func StartSimulation(simState *SimulationState, durationMinutes time.Duration, f
 				return // Exits the goroutine immediately.
 			}
 
-			time.Sleep(FlightMonitorInterval) // Sleep to avoid busy-waiting and reduce CPU usage
-
 			// We need to safely access and potentially modify globalSimState.PlanesInFlight.
 			// It's safer to copy the list of planes to be processed, then release the lock,
 			// and then process the copy. This prevents deadlocks if Land() tries to acquire
 			// other locks (like airport.Mu) while globalSimState.Mu is held.
 			globalSimState.Mu.Lock()
-			planesToLand := []Plane{}
+			planesToLand := []*Plane{}
 			type monitorTCASEngagement struct {
-				plane      Plane
+				plane      *Plane
 				engagement TCASEngagement
 			}
 			planesToEngageTCASManeuver := []monitorTCASEngagement{}
-			currentTime := time.Now()
 
 			for _, p := range globalSimState.PlanesInFlight {
 				if len(p.FlightLog) > 0 {
 					currentFlight := p.FlightLog[len(p.FlightLog)-1]
 					// Check if current time is past or at the plane's scheduled landing time
-					if currentTime.After(currentFlight.DestinationArrivalTime) || currentTime.Equal(currentFlight.DestinationArrivalTime) {
+					if simState.CurrentSimTime.After(currentFlight.DestinationArrivalTime) || simState.CurrentSimTime.Equal(currentFlight.DestinationArrivalTime) {
 						planesToLand = append(planesToLand, p)
 					}
 				}
@@ -126,7 +124,7 @@ func StartSimulation(simState *SimulationState, durationMinutes time.Duration, f
 					for _, tcasE := range p.CurrentTCASEngagements {
 						// in order to engage early tcas warning, we will call an alarm 3 seconds before the
 						// collition time so the maneuver can take place
-						if currentTime.After(tcasE.TimeOfEngagement.Add(-3*time.Second)) || currentTime.Equal(tcasE.TimeOfEngagement.Add(-3*time.Second)) {
+						if simState.CurrentSimTime.After(tcasE.TimeOfEngagement.Add(-3*time.Second)) || simState.CurrentSimTime.Equal(tcasE.TimeOfEngagement.Add(-3*time.Second)) {
 							newEngagement := monitorTCASEngagement{
 								plane:      p,
 								engagement: tcasE,
@@ -191,7 +189,7 @@ func StartSimulation(simState *SimulationState, durationMinutes time.Duration, f
 				}
 
 				// Find the corresponding plane to engage the tcas
-				var otherPlane Plane
+				var otherPlane *Plane
 				for _, plane := range globalSimState.PlanesInFlight {
 					if plane.Serial == tcasEngagement.engagement.OtherPlaneSerial {
 						otherPlane = plane
@@ -254,15 +252,9 @@ func StartSimulation(simState *SimulationState, durationMinutes time.Duration, f
 
 					// update the plane to contain triggered warning so the monitor doesn't make multiple calls to print the warning
 					globalSimState.Mu.Lock()
-					for i, plane := range globalSimState.PlanesInFlight {
-						if plane.Serial == tcasEngagement.engagement.PlaneSerial {
-							for j, engagement := range globalSimState.PlanesInFlight[i].CurrentTCASEngagements {
-								if engagement.EngagementID == tcasEngagement.engagement.EngagementID {
-									globalSimState.PlanesInFlight[i].CurrentTCASEngagements[j].WarningTriggered = true
-								}
-							}
-						}
-					}
+					markWarningTriggered(simState, tcasEngagement.plane.Serial, tcasEngagement.engagement.EngagementID)
+					markWarningTriggered(simState, otherPlane.Serial, tcasEngagement.engagement.EngagementID)
+
 					globalSimState.Mu.Unlock()
 				}
 
@@ -299,4 +291,18 @@ func StartSimulation(simState *SimulationState, durationMinutes time.Duration, f
 	log.Printf("--- TCAS Simulation Ended ---")
 	fmt.Fprintf(f, "%s--- TCAS Simulation Ended ---\n",
 		time.Now().Format("2006-01-02 15:04:05"))
+
+}
+
+func markWarningTriggered(simState *SimulationState, planeSerial string, engagementID string) {
+	for i := range simState.PlanesInFlight {
+		if simState.PlanesInFlight[i].Serial == planeSerial {
+			for j := range simState.PlanesInFlight[i].CurrentTCASEngagements {
+				if simState.PlanesInFlight[i].CurrentTCASEngagements[j].EngagementID == engagementID {
+					simState.PlanesInFlight[i].CurrentTCASEngagements[j].WarningTriggered = true
+					return
+				}
+			}
+		}
+	}
 }
