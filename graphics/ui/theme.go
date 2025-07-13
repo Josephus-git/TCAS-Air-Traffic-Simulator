@@ -1,10 +1,10 @@
 package ui
 
 import (
-	"image/color" // Required for defining colors
+	"image/color"
 
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/theme" // Used for theme constants and fallback to default theme
+	"fyne.io/fyne/v2/theme"
 )
 
 // CustomDarkTheme implements fyne.Theme to provide a dark mode appearance.

@@ -27,7 +27,7 @@ func getDetails(simState *aviation.SimulationState, argument2 string) {
 	}
 }
 
-// getAirPlanesDetails prints selected details of all flights logged in all various planes
+// getFlightsDetails prints selected details of all flights logged in all various planes
 func getFlightDetails(simState *aviation.SimulationState) {
 	var simTime time.Time
 	if simState.SimIsRunning {

@@ -86,14 +86,10 @@ func (ap *Airport) Land(plane *Plane, simState *SimulationState) error {
 	ap.Mu.Lock()
 	defer ap.Mu.Unlock() // Ensure the lock is released when the function exits
 
-	// 5. Simulate the physical landing duration.
-	// The lock is held during this time, preventing other takeoffs or landings
-	// from this airport (due to the strict rule and lock).
-
-	// 6. Release the runway after the landing is complete.
+	// Release the runway after the landing is complete.
 	ap.Runway.noOfRunwayinUse--
 
-	// 7. Remove the plane from the global `simState.PlanesInFlight` list.
+	// Remove the plane from the global `simState.PlanesInFlight` list.
 	simState.Mu.Lock()
 	planeInFlightIndex := -1
 	for i, p := range simState.PlanesInFlight {
@@ -109,13 +105,13 @@ func (ap *Airport) Land(plane *Plane, simState *SimulationState) error {
 	simState.PlanesInFlight = append(simState.PlanesInFlight[:planeInFlightIndex], simState.PlanesInFlight[planeInFlightIndex+1:]...)
 	simState.Mu.Unlock()
 
-	// 8. Update the plane's status to reflect it's no longer in flight.
+	// Update the plane's status to reflect it's no longer in flight.
 	plane.PlaneInFlight = false
 
 	plane.FlightLog[len(plane.FlightLog)-1].FlightStatus = "landed"
 	plane.FlightLog[len(plane.FlightLog)-1].ActualLandingTime = simState.CurrentSimTime
 
-	// 9. Add the now-landed plane to the destination airport's list of parked planes.
+	// Add the now-landed plane to the destination airport's list of parked planes.
 	ap.Planes = append(ap.Planes, plane) // Append the updated copy of the plane
 
 	log.Printf("Plane %s successfully landed at Airport %s (%s). It is now parked.\n\n",

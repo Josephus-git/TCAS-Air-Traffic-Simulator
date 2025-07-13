@@ -29,7 +29,7 @@ func logDetails(simState *aviation.SimulationState, argument2 string) {
 	}
 }
 
-// getAirPlanesDetails prints selected details of all flights logged in all various planes
+// logAirPlanesDetails prints selected details of all flights logged in all various planes
 func logFlightDetailsToFile(simState *aviation.SimulationState) {
 	logFilePath := "logs/flightDetails.txt"
 	// Open the file in append mode. Create it if it doesn't exist.
@@ -179,7 +179,7 @@ func logAirportDetails(simState *aviation.SimulationState) {
 	fmt.Println("Successfully logged airports")
 }
 
-// getFlightDetails logs all details for a given Flight struct,
+// logFlightDetails logs all details for a given Flight struct,
 func logFlightDetails(flight aviation.Flight, simTime time.Time, f *os.File) {
 	fmt.Fprintln(f, "    --- Flight Details ---")
 	fmt.Fprintf(f, "    Flight ID: %s\n", flight.FlightID)

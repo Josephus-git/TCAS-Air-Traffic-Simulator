@@ -21,9 +21,14 @@ import (
 	"github.com/josephus-git/TCAS-simulation-Fyne/internal/util"
 )
 
+// a holds the main Fyne application instance for the program.
 var a fyne.App
+
+// inputWindow holds the Fyne GUI window used for user input and controls.
 var inputWindow fyne.Window
 
+// StartFyne initializes the Fyne GUI application, sets up the simulation input window with controls for configuration,
+// and manages the lifecycle of both the input and simulation display windows.
 func StartFyne(cfg *config.Config, simState *aviation.SimulationState) {
 	if cfg.FirstRun {
 		// Create a new Fyne application
@@ -172,7 +177,6 @@ func StartFyne(cfg *config.Config, simState *aviation.SimulationState) {
 			aviation.OpenLogFiles(cfg, simState)
 
 			simState.SimWindowOpened = true
-			simState.SimIsRunning = true
 			log.Printf("Starting simulation with %d airplanes.", numAirPlanes)
 		})
 
@@ -208,6 +212,7 @@ func StartFyne(cfg *config.Config, simState *aviation.SimulationState) {
 
 }
 
+// startPartition handles the command-line interface for the TCAS simulator, processing user input for various commands.
 func startPartition(cfg *config.Config, simState *aviation.SimulationState) {
 	cfg.FirstRun = false
 	scanner := bufio.NewScanner(os.Stdin)

@@ -17,10 +17,14 @@ type simulationAreaRenderer struct {
 	background     *canvas.Rectangle // Background is separate to ensure it's drawn first
 }
 
+// MinSize returns the default minimum dimensions (600x400) required for the simulation area renderer.
 func (r *simulationAreaRenderer) MinSize() fyne.Size {
-	return fyne.NewSize(600, 400) // Default minimum size for the simulation area
+	return fyne.NewSize(600, 400)
 }
 
+// Layout positions and renders all simulation elements (
+// background, status, airports, planes, flight paths, and TCAS circles
+// ) within the given size, applying pan, zoom, and TCAS logic based on the current simulation state.
 func (r *simulationAreaRenderer) Layout(size fyne.Size) {
 	// Layout the background to fill the widget
 	r.background.Resize(size)
@@ -251,6 +255,7 @@ func (r *simulationAreaRenderer) Objects() []fyne.CanvasObject {
 	return objects
 }
 
+// Destroy stops the animation ticker and clears all associated resources, performing necessary cleanup for the renderer.
 func (r *simulationAreaRenderer) Destroy() {
 	// Clean up any resources if necessary
 	r.simulationArea.animationTicker.Stop() // Stop the animation ticker

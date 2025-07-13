@@ -12,6 +12,7 @@ import (
 // FlightMonitorInterval is how often the monitor checks planes for landing time
 const FlightMonitorInterval = 100 * time.Millisecond
 
+// FlightNumberCount is a global counter used to generate unique flight numbers.
 var FlightNumberCount int
 
 // simulationCancelFunc is a global variable to hold the cancel function for the simulation context,

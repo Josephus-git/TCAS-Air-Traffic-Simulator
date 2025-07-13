@@ -11,6 +11,8 @@ import (
 	"github.com/josephus-git/TCAS-simulation-Fyne/internal/aviation"
 )
 
+// GraphicsSimulationInit initializes and sets up the main simulation window, including UI controls for navigation,
+// zoom, and quitting, alongside the core simulation area display.
 func GraphicsSimulationInit(simState *aviation.SimulationState, simulationWindow fyne.Window, inputWindow fyne.Window) {
 	simulationWindow.Resize(fyne.NewSize(800, 600)) // Larger window for simulation
 

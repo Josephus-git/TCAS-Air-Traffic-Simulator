@@ -121,7 +121,7 @@ func NewSimulationArea(simState *aviation.SimulationState, mainWindow fyne.Windo
 	return sa
 }
 
-// generateAirports creates the airport objects based on the input number.
+// generateAirportsToRender creates the airport objects based on the input number.
 func (sa *SimulationArea) generateAirportsToRender(simState *aviation.SimulationState) {
 
 	airportNum := len(simState.Airports)
@@ -185,9 +185,6 @@ func (sa *SimulationArea) DragEnd() {
 // MouseUp resets the last pan position.
 // This implements the desktop.Mouseable interface.
 func (sa *SimulationArea) MouseUp(ev *desktop.MouseEvent) {
-	// For panning, MouseUp might not be strictly necessary if DragEnd handles the reset.
-	// However, it's good to keep it if you have other non-drag mouse up interactions.
-	// For now, we'll just log and refresh.
 	sa.Refresh() // Refresh to update status label
 }
 
@@ -219,6 +216,7 @@ func (sa *SimulationArea) ZoomOut() {
 	sa.Refresh()
 }
 
+// ClearAllResource hides and clears all plane and airport rendering objects, then refreshes the simulation area.
 func (sa *SimulationArea) ClearAllResource() {
 	for _, p := range sa.planesInFlight {
 		if p.Image != nil {

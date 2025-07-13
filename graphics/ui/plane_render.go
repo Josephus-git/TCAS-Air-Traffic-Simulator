@@ -22,16 +22,16 @@ type PlaneRender struct {
 	ActualPlane    *aviation.Plane
 	Image          *canvas.Image
 	ImageLocation  fyne.Position
-	FlightPathLine *canvas.Line   // To draw the flight path
-	TCASCircle     *canvas.Circle // Circle for TCAS engagement visualization
+	FlightPathLine *canvas.Line
+	TCASCircle     *canvas.Circle
 }
 
 // AddPlaneToRender adds a new PlaneRender object to the simulation area.
-// This function will be called by the aviation package via a registered callback.
+// This function will be called by the aviation package via the registered callback in simState.OnPlaneTakeoff.
 func (sa *SimulationArea) AddPlaneToRender(plane *aviation.Plane) {
 	image := canvas.NewImageFromResource(sa.airplaneImage)
 	image.Hidden = true                      // Start hidden, will be shown when position is updated
-	image.SetMinSize(sa.initialAirplaneSize) // Set initial size >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>check here
+	image.SetMinSize(sa.initialAirplaneSize) // Set initial size
 
 	currentFlight := plane.FlightLog[len(plane.FlightLog)-1]
 	rotation := planeOrientation(currentFlight.FlightSchedule.Depature, currentFlight.FlightSchedule.Destination)
@@ -72,7 +72,7 @@ func (sa *SimulationArea) AddPlaneToRender(plane *aviation.Plane) {
 }
 
 // RemovePlaneFromRender removes a PlaneRender object from the simulation area.
-// This function will be called by the aviation package via a registered callback.
+// This function will be called by the aviation package via a registered callback in simState.OnPlaneLand.
 func (sa *SimulationArea) RemovePlaneFromRender(planeSerial string) {
 	for i, p := range sa.planesInFlight {
 		if p.ActualPlane.Serial == planeSerial {

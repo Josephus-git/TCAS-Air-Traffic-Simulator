@@ -5,7 +5,7 @@ import (
 	"math"
 )
 
-// Most functions here are helpers to implement the finding of closest approach between flight paths
+// All functions here are helpers to implement calculations on flight paths
 
 // Coordinate represents a 3D Coordinate
 // may be changed to latitude logitude altitude

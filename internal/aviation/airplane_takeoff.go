@@ -69,7 +69,7 @@ func (airport *Airport) TakeOff(plane *Plane, simState *SimulationState) (*Fligh
 	airport.Mu.Lock()
 	// Mark a runway as in use.
 	airport.Runway.noOfRunwayinUse++
-	airport.Mu.Unlock() // <<< IMPORTANT: Release the lock BEFORE the takeoff duration sleep
+	airport.Mu.Unlock() // Release the lock BEFORE the takeoff duration sleep
 
 	// Simulate the physical takeoff duration. This does NOT hold the lock.
 	// This allows other planes to acquire the lock and potentially start taking off

@@ -25,7 +25,7 @@ func start() {
 
 	aviation.GetNumberOfPlanes(initialize)
 
-	// This loop is to run only before the simulation is called
+	// This temporary loop is to run only before the simulation is called
 	for initialize.FirstRun {
 		fmt.Print("TCAS-simulator > ")
 		scanner.Scan()
