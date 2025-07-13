@@ -61,19 +61,15 @@ func tcasCore(simState *aviation.SimulationState, plane1, plane2 *aviation.Plane
 		shouldCrash = false
 	} else if (plane1.TCASCapability == aviation.TCASPerfect && plane2.TCASCapability == aviation.TCASFaulty) ||
 		(plane1.TCASCapability == aviation.TCASFaulty && plane2.TCASCapability == aviation.TCASPerfect) {
-		if rand.Float64() < 0.25 {
+		if rand.Float64() < 0.5 {
 			shouldCrash = true
 			fmt.Fprintf(tcasLog, "%s TCAS: One perfect, one faulty. Collision occurred between %s and %s.\n\n", engagementTime.Format("2006-01-02 15:04:05"), plane1.Serial, plane2.Serial)
 		} else {
 			fmt.Fprintf(tcasLog, "%s TCAS: One perfect, one faulty. Averted between %s and %s.\n\n", engagementTime.Format("2006-01-02 15:04:05"), plane1.Serial, plane2.Serial)
 		}
 	} else if plane1.TCASCapability == aviation.TCASFaulty && plane2.TCASCapability == aviation.TCASFaulty {
-		if rand.Float64() < 0.5 {
-			shouldCrash = true
-			fmt.Fprintf(tcasLog, "%s TCAS: Both faulty. Collision occurred between %s and %s.\n\n", engagementTime.Format("2006-01-02 15:04:05"), plane1.Serial, plane2.Serial)
-		} else {
-			fmt.Fprintf(tcasLog, "%s TCAS: Both faulty. Averted between %s and %s.\n\n", engagementTime.Format("2006-01-02 15:04:05"), plane1.Serial, plane2.Serial)
-		}
+		shouldCrash = true
+		fmt.Fprintf(tcasLog, "%s TCAS: Both faulty. Collision occurred between %s and %s.\n\n", engagementTime.Format("2006-01-02 15:04:05"), plane1.Serial, plane2.Serial)
 	}
 
 	newTcasEngagement := aviation.TCASEngagement{

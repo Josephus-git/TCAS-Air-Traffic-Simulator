@@ -25,7 +25,6 @@ var stopTrigger *time.Timer
 // It sets up a context for graceful shutdown and waits for all simulation activities to complete.
 func StartSimulation(simState *SimulationState, durationMinutes time.Duration) {
 	f := simState.ConsoleLog
-	tcasLog := simState.TCASLog
 	FlightNumberCount = 0
 
 	defer func() { simState.SimIsRunning = false }()
@@ -107,11 +106,6 @@ func StartSimulation(simState *SimulationState, durationMinutes time.Duration) {
 			// other locks (like airport.Mu) while globalSimState.Mu is held.
 			globalSimState.Mu.Lock()
 			planesToLand := []*Plane{}
-			type monitorTCASEngagement struct {
-				plane      Plane
-				engagement TCASEngagement
-			}
-			planesToEngageTCASManeuver := []monitorTCASEngagement{}
 
 			for _, p := range globalSimState.PlanesInFlight {
 				if len(p.FlightLog) > 0 {
@@ -165,91 +159,6 @@ func StartSimulation(simState *SimulationState, durationMinutes time.Duration) {
 				}
 			}
 
-			// Process the planes that are ready to engage Tcas
-			for _, tcasEngagement := range planesToEngageTCASManeuver {
-				select {
-				case <-ctx.Done():
-					log.Printf("Flight monitor stopping while processing planes.")
-					fmt.Fprintf(f, "%sFlight monitor stopping while processing planes.\n",
-						time.Now().Format("2006-01-02 15:04:05"))
-					return
-				default:
-				}
-
-				// Find the corresponding plane to engage the tcas
-				var otherPlane *Plane
-				for _, plane := range globalSimState.PlanesInFlight {
-					if plane.Serial == tcasEngagement.engagement.OtherPlaneSerial {
-						otherPlane = plane
-						break
-					}
-				}
-
-				// Check if otherPlane not found
-				if otherPlane.Serial == "" {
-					continue // plane has probably landed
-				}
-
-				// update the planes tcas records
-				globalSimState.Mu.Lock()
-				for i, plane := range globalSimState.PlanesInFlight {
-					if plane.Serial == tcasEngagement.engagement.PlaneSerial {
-						globalSimState.PlanesInFlight[i].TCASEngagementRecords = append(globalSimState.PlanesInFlight[i].TCASEngagementRecords, tcasEngagement.engagement)
-					}
-					if plane.Serial == tcasEngagement.engagement.OtherPlaneSerial {
-						globalSimState.PlanesInFlight[i].TCASEngagementRecords = append(globalSimState.PlanesInFlight[i].TCASEngagementRecords, tcasEngagement.engagement)
-					}
-				}
-				globalSimState.Mu.Unlock()
-
-				if !tcasEngagement.engagement.WarningTriggered {
-					// implement the TCAS early warning system
-					log.Printf("TCAS: CRASH IMMINENT! Plane %s and Plane %s about to collide! ENGAGE EVASIVE MANEUVER NOW!!!\n\n",
-						tcasEngagement.plane.Serial, otherPlane.Serial)
-					fmt.Fprintf(tcasLog, "%s TCAS: CRASH IMMINENT! Plane %s and Plane %s about to collide! ENGAGE EVASIVE MANEUVER NOW!!!\n\n",
-						time.Now().Format("2006-01-02 15:04:05"), tcasEngagement.plane.Serial, otherPlane.Serial)
-					fmt.Fprintf(f, "%s TCAS: CRASH IMMINENT! Plane %s and Plane %s about to collide! ENGAGE EVASIVE MANEUVER NOW!!!\n\n",
-						time.Now().Format("2006-01-02 15:04:05"), tcasEngagement.plane.Serial, otherPlane.Serial)
-
-					// Carry out the corresponding actions depending of if the planes will successfully evade each orther or not
-					if tcasEngagement.engagement.WillCrash {
-						time.AfterFunc(3*time.Second, func() {
-							log.Printf("DISASTER OCCURED!: Plane %s and Plane %s CRASHED\n\n",
-								tcasEngagement.plane.Serial, otherPlane.Serial)
-							fmt.Fprintf(tcasLog, "%s DISASTER OCCURED!: Plane %s and Plane %s CRASHED\n\n",
-								time.Now().Format("2006-01-02 15:04:05"), tcasEngagement.plane.Serial, otherPlane.Serial)
-							fmt.Fprintf(f, "%s DISASTER OCCURED!: Plane %s and Plane %s CRASHED\n\n",
-								time.Now().Format("2006-01-02 15:04:05"), tcasEngagement.plane.Serial, otherPlane.Serial)
-
-							// at this point, the simulation ends
-							if simState.SimIsRunning {
-								EmergencyStop(simState)
-							}
-
-						})
-					} else {
-						time.AfterFunc(3*time.Second, func() {
-							log.Printf("DISASTER AVERTED! Plane %s and Plane %s SUCCESSFULLY ENGAGED EVASIVE MANEUVER\n\n",
-								tcasEngagement.plane.Serial, otherPlane.Serial)
-							fmt.Fprintf(tcasLog, "%s DISASTER AVERTED! Plane %s and Plane %s SUCCESSFULLY ENGAGED EVASIVE MANEUVER\n\n",
-								time.Now().Format("2006-01-02 15:04:05"), tcasEngagement.plane.Serial, otherPlane.Serial)
-							fmt.Fprintf(f, "%s DISASTER AVERTED! Plane %s and Plane %s SUCCESSFULLY ENGAGED EVASIVE MANEUVER\n\n",
-								time.Now().Format("2006-01-02 15:04:05"), tcasEngagement.plane.Serial, otherPlane.Serial)
-						})
-					}
-
-					// update the plane to contain triggered warning so the monitor doesn't make multiple calls to print the warning
-					globalSimState.Mu.Lock()
-					markWarningTriggered(simState, tcasEngagement.plane.Serial, tcasEngagement.engagement.EngagementID)
-					markWarningTriggered(simState, otherPlane.Serial, tcasEngagement.engagement.EngagementID)
-
-					globalSimState.Mu.Unlock()
-				}
-
-				if !globalSimState.SimIsRunning {
-					break
-				}
-			}
 		}
 	}(simState, ctx)
 
@@ -280,15 +189,4 @@ func StartSimulation(simState *SimulationState, durationMinutes time.Duration) {
 	fmt.Fprintf(f, "%s--- TCAS Simulation Ended ---\n",
 		time.Now().Format("2006-01-02 15:04:05"))
 
-}
-
-func markWarningTriggered(simState *SimulationState, planeSerial string, engagementID string) {
-	for i := range simState.PlanesInFlight {
-		if simState.PlanesInFlight[i].Serial == planeSerial {
-			if simState.PlanesInFlight[i].CurrentTCASEngagement.EngagementID == engagementID {
-				simState.PlanesInFlight[i].CurrentTCASEngagement.WarningTriggered = true
-				return
-			}
-		}
-	}
 }

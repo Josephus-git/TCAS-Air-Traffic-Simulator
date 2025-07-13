@@ -46,8 +46,10 @@ type SimulationArea struct {
 	PlaneLandCallback    func(string) // Pass plane serial for removal
 
 	// Timer for updating plane positions
-	animationTicker *time.Ticker
-	simState        *aviation.SimulationState
+	animationTicker          *time.Ticker
+	simState                 *aviation.SimulationState
+	planeCrash, crashTrigger bool
+	CrashedPlanes            []string
 }
 
 // Ensure SimulationArea implements the necessary interfaces for a widget,
@@ -83,6 +85,9 @@ func NewSimulationArea(simState *aviation.SimulationState, mainWindow fyne.Windo
 		mainWindow:          mainWindow,
 		planesInFlight:      []*PlaneRender{}, // Initialize empty slice
 		simState:            simState,
+		planeCrash:          false,
+		crashTrigger:        false,
+		CrashedPlanes:       []string{},
 	}
 	sa.statusLabel.Alignment = fyne.TextAlignCenter
 	sa.statusLabel.TextSize = 8

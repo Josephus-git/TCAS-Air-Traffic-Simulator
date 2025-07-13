@@ -3,6 +3,8 @@ package ui
 import (
 	"fmt"
 	"image/color"
+	"log"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -202,7 +204,10 @@ func (r *simulationAreaRenderer) applyTCASCircle(pr *PlaneRender, pCoord aviatio
 	if engagement.Engaged { // Green or Red state
 		pr.TCASCircle.StrokeColor = color.Transparent // No stroke for filled circles
 		if engagement.WillCrash {
-			pr.TCASCircle.FillColor = color.RGBA{R: 255, A: 200} // Red fill, semi-transparent
+			r.simulationArea.CrashedPlanes = append(r.simulationArea.CrashedPlanes, engagement.PlaneSerial, engagement.OtherPlaneSerial)
+			pr.TCASCircle.FillColor = color.RGBA{R: 255, A: 255} // Red fill, plane destroyed
+			pr.Image.Hide()
+			r.simulationArea.planeCrash = true
 		} else {
 			pr.TCASCircle.FillColor = color.RGBA{G: 255, A: 200} // Green fill, semi-transparent
 		}
@@ -255,10 +260,43 @@ func (r *simulationAreaRenderer) Destroy() {
 func (r *simulationAreaRenderer) Refresh() {
 	zoomText := fmt.Sprintf("Zoom: %.1fx", r.simulationArea.zoomScales[r.simulationArea.zoomLevel])
 
-	r.simulationArea.statusLabel.Text = fmt.Sprintf(
-		"Offset: %.0f, %.0f | %s | Drag to pan | Planes: %d",
-		r.simulationArea.offsetX, r.simulationArea.offsetY, zoomText, len(r.simulationArea.planesInFlight),
-	)
+	if !r.simulationArea.planeCrash {
+		r.simulationArea.statusLabel.Text = fmt.Sprintf(
+			"Offset: %.0f, %.0f | %s | Drag to pan | Planes: %d",
+			r.simulationArea.offsetX, r.simulationArea.offsetY, zoomText, len(r.simulationArea.planesInFlight),
+		)
+	} else {
+		if len(r.simulationArea.CrashedPlanes) > 1 {
+			tcasLog := r.simulationArea.simState.TCASLog
+			f := r.simulationArea.simState.ConsoleLog
+			planeSerial := r.simulationArea.CrashedPlanes[0]
+			otherPlaneSerial := r.simulationArea.CrashedPlanes[1]
+			r.simulationArea.statusLabel.Text = fmt.Sprintf("PLANE: %s AND PLANE: %s HAVE CRASHED !!!", planeSerial, otherPlaneSerial)
+			r.simulationArea.statusLabel.Color = color.RGBA{R: 255, A: 255}
+			r.simulationArea.statusLabel.TextSize = 30
+			r.simulationArea.statusLabel.TextStyle.Bold = true
+			if !r.simulationArea.crashTrigger {
+				// Carry out the corresponding actions depending of if the planes will successfully evade each orther or not
+				time.AfterFunc(3*time.Second, func() {
+					log.Printf("DISASTER OCCURED!: Plane %s and Plane %s CRASHED\n\n",
+						planeSerial, otherPlaneSerial)
+					fmt.Fprintf(tcasLog, "%s DISASTER OCCURED!: Plane %s and Plane %s CRASHED\n\n",
+						time.Now().Format("2006-01-02 15:04:05"), planeSerial, otherPlaneSerial)
+					fmt.Fprintf(f, "%s DISASTER OCCURED!: Plane %s and Plane %s CRASHED\n\n",
+						time.Now().Format("2006-01-02 15:04:05"), planeSerial, otherPlaneSerial)
+
+					// at this point, the simulation ends
+					if r.simulationArea.simState.SimIsRunning {
+						aviation.EmergencyStop(r.simulationArea.simState)
+					}
+
+				})
+				r.simulationArea.crashTrigger = true
+
+			}
+		}
+
+	}
 	r.simulationArea.statusLabel.Refresh()
 
 	for _, airport := range r.simulationArea.airports {
