@@ -93,7 +93,7 @@ func logAirplanesDetails(simState *aviation.SimulationState) {
 	} else {
 		simTime = simState.SimEndedTime
 	}
-	Planes := []aviation.Plane{}
+	Planes := []*aviation.Plane{}
 
 	for _, ap := range simState.Airports {
 		Planes = append(Planes, ap.Planes...)
@@ -135,13 +135,12 @@ func logAirplanesDetails(simState *aviation.SimulationState) {
 				logEngagementDetails(engagement, f)
 			}
 		}
-		if len(plane.CurrentTCASEngagements) == 0 {
+		if plane.CurrentTCASEngagement == nil {
 			fmt.Fprintln(f, "    No current TCAS engagement recorded for this plane.")
 		} else {
-			for _, engagement := range plane.CurrentTCASEngagements {
-				logEngagementDetails(engagement, f)
-			}
+			logEngagementDetails(*plane.CurrentTCASEngagement, f)
 		}
+
 		fmt.Fprintln(f, "-------------------------------------------")
 	}
 

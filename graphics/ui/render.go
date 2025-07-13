@@ -82,6 +82,8 @@ func (r *simulationAreaRenderer) Layout(size fyne.Size) {
 			if planeRender.TCASCircle != nil {
 				planeRender.TCASCircle.Hidden = true
 			}
+			// Reset current engagement if plane is not in flight
+			plane.CurrentTCASEngagement = nil
 			continue
 		}
 
@@ -100,75 +102,125 @@ func (r *simulationAreaRenderer) Layout(size fyne.Size) {
 		planeRender.FlightPathLine.Hidden = false
 
 		// --- TCAS Circle Logic ---
-		// Get the relevant engagement for *this* plane
+		// Reset current engagement for this frame unless an active one is found
+		plane.CurrentTCASEngagement = nil
 
-		for _, tcasE := range plane.CurrentTCASEngagements {
+		for _, otherPlaneRender := range r.simulationArea.planesInFlight {
+			// Don't compare a plane with itself
+			if planeRender.ActualPlane.Serial == otherPlaneRender.ActualPlane.Serial {
+				continue
+			}
 
-			// Helper function to apply circle properties
-			applyTCASCircle := func(pr *PlaneRender, pCoord aviation.Coordinate, engagement aviation.TCASEngagement) {
+			otherPlane := otherPlaneRender.ActualPlane
 
-				engagementTime := engagement.TimeOfEngagement
-				preEngagementStart := engagementTime.Add(-3 * time.Second)
-				postEngagementEnd := engagementTime.Add(2 * time.Second)
+			otherPlaneCoord, otherOk := planeCurrentPosition(otherPlane, simTime)
+			if !otherOk {
+				continue // Skip if other plane is not in flight
+			}
 
-				if simTime.After(preEngagementStart) && simTime.Before(postEngagementEnd) {
-					circleRadiusDisplay := 50.0 * scale // 50 units radius in simulation coordinates, scaled to display
-					circleSize := fyne.NewSize(circleRadiusDisplay*2, circleRadiusDisplay*2)
+			distanceBetweenPlanes := aviation.Distance(planeCoord, otherPlaneCoord)
 
-					displayPX := (float32(pCoord.X) * scale) + r.simulationArea.offsetX
-					displayPY := (float32(pCoord.Y) * scale) + r.simulationArea.offsetY
+			// Find if there's an existing engagement between these two planes
+			var existingEngagement *aviation.TCASEngagement
+			for i := range plane.TCASEngagementRecords {
+				rec := &plane.TCASEngagementRecords[i]
+				if (rec.PlaneSerial == plane.Serial && rec.OtherPlaneSerial == otherPlane.Serial) ||
+					(rec.PlaneSerial == otherPlane.Serial && rec.OtherPlaneSerial == plane.Serial) {
+					existingEngagement = rec
+					break
+				}
+			}
 
-					circleX := displayPX - circleRadiusDisplay
-					circleY := displayPY - circleRadiusDisplay
-					pr.TCASCircle.Move(fyne.NewPos(circleX, circleY))
-					pr.TCASCircle.Resize(circleSize)
-					pr.TCASCircle.Hidden = false
-
-					if simTime.Before(engagementTime) { // Pre-engagement phase
-						pr.TCASCircle.StrokeColor = color.RGBA{R: 255, G: 165, A: 255} // Orange stroke
-						pr.TCASCircle.FillColor = color.Transparent
-					} else { // At or after TimeOfEngagement
-						pr.TCASCircle.StrokeColor = color.Transparent
-						if engagement.WillCrash {
-							pr.TCASCircle.FillColor = color.RGBA{R: 255, A: 200} // Red fill, semi-transparent
-						} else {
-							pr.TCASCircle.FillColor = color.RGBA{G: 255, A: 200} // Green fill, semi-transparent
-						}
-					}
+			if distanceBetweenPlanes < TriggerEngageTCAS {
+				// Engagement Zone (Green/Red)
+				if existingEngagement == nil || !existingEngagement.Engaged { // Only trigger if not already engaged
+					// Trigger TCAS core logic
+					newEngagement := tcasCore(r.simulationArea.simState, plane, otherPlane)
+					// Update the current engagement for both planes for rendering this frame
+					plane.CurrentTCASEngagement = &newEngagement
+					otherPlane.CurrentTCASEngagement = &newEngagement // Ensure the other plane also has this engagement
 				} else {
-					pr.TCASCircle.Hidden = true
+					// If already engaged, just re-apply the existing engagement
+					plane.CurrentTCASEngagement = existingEngagement
 				}
-
-				pr.TCASCircle.Refresh()
-
-			}
-
-			// Apply circle logic for the current plane (planeA)
-			applyTCASCircle(planeRender, planeCoord, tcasE)
-
-			// Apply circle logic for the other engaged plane (planeB), if any
-
-			for _, otherPlaneRender := range r.simulationArea.planesInFlight {
-				if tcasE.OtherPlaneSerial == otherPlaneRender.ActualPlane.Serial {
-					otherPlane := otherPlaneRender.ActualPlane
-
-					// Find the current position of the other plane
-					otherPlaneCoord, otherOk := planeCurrentPosition(otherPlane, simTime)
-					if otherOk {
-						applyTCASCircle(otherPlaneRender, otherPlaneCoord, tcasE)
-					} else {
-						// If other plane is not in transit, hide its circle
-						if otherPlaneRender.TCASCircle != nil {
-							otherPlaneRender.TCASCircle.Hidden = true
-						}
+			} else if distanceBetweenPlanes < TriggerTCAS {
+				// Warning Zone (Orange)
+				if existingEngagement == nil || (!existingEngagement.WarningTriggered && !existingEngagement.Engaged) {
+					// Create a temporary engagement record for warning if not already warned or engaged
+					tempEngagement := aviation.TCASEngagement{
+						EngagementID:     fmt.Sprintf("W-%s-%s-%d", plane.Serial, otherPlane.Serial, time.Now().UnixNano()),
+						PlaneSerial:      plane.Serial,
+						OtherPlaneSerial: otherPlane.Serial,
+						TimeOfEngagement: simTime,
+						WillCrash:        false, // Not determined yet, just a warning
+						WarningTriggered: true,  // Mark warning as triggered
+						Engaged:          false, // Not yet in engagement phase
 					}
+					// Assign to current engagement for rendering
+					plane.CurrentTCASEngagement = &tempEngagement
+					otherPlane.CurrentTCASEngagement = &tempEngagement
+
+					// Persist the warning state in the TCASEngagementRecords
+					if existingEngagement == nil {
+						plane.TCASEngagementRecords = append(plane.TCASEngagementRecords, tempEngagement)
+						otherPlane.TCASEngagementRecords = append(otherPlane.TCASEngagementRecords, tempEngagement)
+					} else {
+						existingEngagement.WarningTriggered = true
+					}
+
+				} else if existingEngagement.WarningTriggered && !existingEngagement.Engaged {
+					// Continue showing orange if already warned but not yet engaged
+					plane.CurrentTCASEngagement = existingEngagement
+				} else {
+					// If already engaged (green/red), suppress orange
+					plane.CurrentTCASEngagement = existingEngagement // Might still be needed if it just exited engagement
 				}
-
 			}
-
+			// If distance > TriggerTCAS, ensure TCAS circle is hidden, unless there's an active engagement for the other plane
 		}
+
+		// After checking all pairs, apply the determined current engagement to the plane's rendering
+		r.applyTCASCircle(planeRender, planeCoord, plane.CurrentTCASEngagement, scale)
+	}
+}
+
+// applyTCASCircle Helper function to apply circle properties based on TCASEngagement
+func (r *simulationAreaRenderer) applyTCASCircle(pr *PlaneRender, pCoord aviation.Coordinate,
+	engagement *aviation.TCASEngagement, scale float32) {
+
+	if engagement == nil {
+		pr.TCASCircle.Hidden = true
+		return
 	}
 
+	circleRadiusDisplay := 50.0 * scale // 50 units radius in simulation coordinates, scaled to display
+	circleSize := fyne.NewSize(circleRadiusDisplay*2, circleRadiusDisplay*2)
+
+	displayPX := (float32(pCoord.X) * scale) + r.simulationArea.offsetX
+	displayPY := (float32(pCoord.Y) * scale) + r.simulationArea.offsetY
+
+	circleX := displayPX - circleRadiusDisplay
+	circleY := displayPY - circleRadiusDisplay
+	pr.TCASCircle.Move(fyne.NewPos(circleX, circleY))
+	pr.TCASCircle.Resize(circleSize)
+	pr.TCASCircle.Hidden = false
+
+	if engagement.Engaged { // Green or Red state
+		pr.TCASCircle.StrokeColor = color.Transparent // No stroke for filled circles
+		if engagement.WillCrash {
+			pr.TCASCircle.FillColor = color.RGBA{R: 255, A: 200} // Red fill, semi-transparent
+		} else {
+			pr.TCASCircle.FillColor = color.RGBA{G: 255, A: 200} // Green fill, semi-transparent
+		}
+	} else if engagement.WarningTriggered { // Orange warning state
+		pr.TCASCircle.StrokeColor = color.RGBA{R: 255, G: 165, A: 255} // Orange stroke
+		pr.TCASCircle.FillColor = color.Transparent                    // No fill for warning
+	} else {
+		// Should not happen if engagement is not nil, but as a fallback, hide it
+		pr.TCASCircle.Hidden = true
+	}
+
+	pr.TCASCircle.Refresh()
 }
 
 // Objects is where the dynamic object list creation happens.
@@ -188,7 +240,7 @@ func (r *simulationAreaRenderer) Objects() []fyne.CanvasObject {
 	for _, planeRender := range r.simulationArea.planesInFlight {
 		objects = append(objects,
 			planeRender.FlightPathLine,
-			planeRender.TCASCircle,
+			planeRender.TCASCircle, // Draw circle before plane image so plane is on top
 			planeRender.Image,
 		)
 	}

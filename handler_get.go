@@ -74,7 +74,7 @@ func getAirPlanesDetails(simState *aviation.SimulationState) {
 	} else {
 		simTime = simState.SimEndedTime
 	}
-	Planes := []aviation.Plane{}
+	Planes := []*aviation.Plane{}
 
 	for _, airport := range simState.Airports {
 		Planes = append(Planes, airport.Planes...)
@@ -117,16 +117,12 @@ func getAirPlanesDetails(simState *aviation.SimulationState) {
 				printEngagementDetails(engagement)
 			}
 		}
-		if len(plane.CurrentTCASEngagements) == 0 {
-			fmt.Println("    No Expected TCAS engagement recorded for this plane.")
-		} else {
-			for _, engagement := range plane.CurrentTCASEngagements {
-				fmt.Println("    --- Expected Engagement Details ---")
-				printEngagementDetails(engagement)
-			}
-		}
-		fmt.Println("-------------------------------------------")
+		fmt.Println("    --- Expected Engagement Details ---")
+		printEngagementDetails(*plane.CurrentTCASEngagement)
+
 	}
+	fmt.Println("-------------------------------------------")
+
 	fmt.Println()
 }
 

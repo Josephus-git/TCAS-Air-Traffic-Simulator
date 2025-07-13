@@ -24,7 +24,7 @@ import (
 var a fyne.App
 var inputWindow fyne.Window
 
-func StartFyne(cfg *config.Config, simState *aviation.SimulationState, f, tcasLog *os.File) {
+func StartFyne(cfg *config.Config, simState *aviation.SimulationState) {
 	if cfg.FirstRun {
 		// Create a new Fyne application
 		a = app.NewWithID("tcas.app")
@@ -120,6 +120,7 @@ func StartFyne(cfg *config.Config, simState *aviation.SimulationState, f, tcasLo
 				if simState.SimIsRunning {
 					aviation.EmergencyStop(simState)
 				}
+				aviation.CloseLogFiles(simState)
 			})
 
 			var numAirPlanes int
@@ -156,7 +157,7 @@ func StartFyne(cfg *config.Config, simState *aviation.SimulationState, f, tcasLo
 			aviation.InitializeAirports(cfg, simState)
 
 			// run the simulation
-			go aviation.StartSimulation(simState, time.Duration(durationOfSimulation), f, tcasLog)
+			go aviation.StartSimulation(simState, time.Duration(durationOfSimulation))
 
 			// Create and show the simulation window
 			if !cfg.FirstRun {
@@ -165,6 +166,7 @@ func StartFyne(cfg *config.Config, simState *aviation.SimulationState, f, tcasLo
 
 			simulationWindow.Show()
 			inputWindow.Hide()
+			aviation.OpenLogFiles(cfg, simState)
 
 			simState.SimWindowOpened = true
 			simState.SimIsRunning = true
@@ -230,28 +232,4 @@ func startPartition(cfg *config.Config, simState *aviation.SimulationState) {
 
 		println("")
 	}
-}
-
-// startInit parses the duration string and initializes the simulation,
-// handles input validation, ensuring a positive integer for simulation duration.
-func runInit(cfg *config.Config, simState *aviation.SimulationState) {
-
-	logFilePath := "logs/console_log.txt"
-	// Open the file in append mode. Create it if it doesn't exist.
-	f, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		log.Fatalf("failed to open log file: %v", err)
-	}
-
-	logFilePath = "logs/tcasLog.txt"
-	tcasLog, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		log.Fatalf("failed to open log file: %v", err)
-	}
-
-	simState.SimIsRunning = true
-	simState.SimEndedTime = time.Time{}
-
-	StartFyne(cfg, simState, f, tcasLog)
-
 }

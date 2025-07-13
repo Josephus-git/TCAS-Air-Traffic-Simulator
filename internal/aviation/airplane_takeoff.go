@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
-	"os"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -22,15 +21,16 @@ const TakeoffDuration = 5 * time.Second
 //
 // Parameters:
 //
-//	plane: The Plane struct that is taking off. Note that this is passed by value;
-//	       the modifications to this copy are then reflected when it's added to simState.PlanesInFlight.
+//	plane: The Plane struct that is taking off. Note that this is passed by value
+//	       the modifications to this copy are then reflected when its added to simState.PlanesInFlight.
 //	simState: A pointer to the global SimulationState, allowing updates to the list of planes in flight.
 //
 // Returns:
 //
 //	*Flight: A pointer to the newly created Flight struct representing this takeoff.
 //	error: An error if the takeoff cannot be initiated (e.g., no available runways, plane not found).
-func (airport *Airport) TakeOff(plane Plane, simState *SimulationState, f, tcasLog *os.File) (*Flight, error) {
+func (airport *Airport) TakeOff(plane *Plane, simState *SimulationState) (*Flight, error) {
+	f := simState.ConsoleLog
 	log.Printf("Plane %s (Cruise Speed: %.2fm/s) is attempting to takeoff from Airport %s %s\n\n",
 		plane.Serial, plane.CruiseSpeed, airport.Serial, airport.Location.String())
 	fmt.Fprintf(f, "%s Plane %s (Cruise Speed: %.2fm/s) is attempting to takeoff from Airport %s %s\n\n",
@@ -157,8 +157,7 @@ func (airport *Airport) TakeOff(plane Plane, simState *SimulationState, f, tcasL
 	// Update the plane's internal state to reflect it's now in flight.
 	plane.PlaneInFlight = true
 	plane.FlightLog = append(plane.FlightLog, newFlight)
-	tcasEngagements := plane.tcas(simState, tcasLog)
-	plane.CurrentTCASEngagements = tcasEngagements
+
 	// Add the updated plane to the global list of planes currently in flight.>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 	simState.PlanesInFlight = append(simState.PlanesInFlight, plane)
 
@@ -170,7 +169,7 @@ func (airport *Airport) TakeOff(plane Plane, simState *SimulationState, f, tcasL
 	// Call the UI callback if registered
 	if simState.OnPlaneTakeOffCallback != nil {
 		fyne.Do(func() { // Ensure UI updates are on main goroutine
-			simState.OnPlaneTakeOffCallback(&plane)
+			simState.OnPlaneTakeOffCallback(plane)
 		})
 	}
 

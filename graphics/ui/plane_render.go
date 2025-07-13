@@ -9,7 +9,6 @@ import (
 	"image/png"
 	"log"
 	"math"
-	"time"
 
 	"github.com/disintegration/imaging"
 
@@ -22,6 +21,7 @@ import (
 type PlaneRender struct {
 	ActualPlane    *aviation.Plane
 	Image          *canvas.Image
+	ImageLocation  fyne.Position
 	FlightPathLine *canvas.Line   // To draw the flight path
 	TCASCircle     *canvas.Circle // Circle for TCAS engagement visualization
 }
@@ -31,7 +31,7 @@ type PlaneRender struct {
 func (sa *SimulationArea) AddPlaneToRender(plane *aviation.Plane) {
 	image := canvas.NewImageFromResource(sa.airplaneImage)
 	image.Hidden = true                      // Start hidden, will be shown when position is updated
-	image.SetMinSize(sa.initialAirplaneSize) // Set initial size
+	image.SetMinSize(sa.initialAirplaneSize) // Set initial size >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>check here
 
 	currentFlight := plane.FlightLog[len(plane.FlightLog)-1]
 	rotation := planeOrientation(currentFlight.FlightSchedule.Depature, currentFlight.FlightSchedule.Destination)
@@ -89,43 +89,6 @@ func (sa *SimulationArea) RemovePlaneFromRender(planeSerial string) {
 		}
 	}
 	sa.Refresh()
-}
-
-// planeCurrentPosition calculates the current position of a plane along its flight path.
-// This is crucial for real-time animation.
-func planeCurrentPosition(plane *aviation.Plane, simTime time.Time) (aviation.Coordinate, bool) {
-	if len(plane.FlightLog) == 0 {
-		return aviation.Coordinate{}, false
-	}
-
-	currentFlight := plane.FlightLog[len(plane.FlightLog)-1]
-
-	if simTime.Before(currentFlight.TakeoffTime) {
-		// Plane hasn't taken off yet, return its departure airport's location
-		return currentFlight.FlightSchedule.Depature, false
-	} else if simTime.After(currentFlight.DestinationArrivalTime) {
-		// Plane has landed, return its destination airport's location
-		// The UI should handle removing the plane if it's considered fully landed
-		return currentFlight.FlightSchedule.Destination, false
-	} else {
-		// Plane is in transit
-		totalDuration := float64(currentFlight.DestinationArrivalTime.Sub(currentFlight.TakeoffTime))
-		elapsedDuration := float64(simTime.Sub(currentFlight.TakeoffTime))
-
-		if totalDuration == 0 { // Avoid division by zero
-			return currentFlight.FlightSchedule.Depature, true
-		}
-
-		// Interpolation factor (0.0 at takeoff, 1.0 at arrival)
-		t := elapsedDuration / totalDuration
-
-		// Linear interpolation for X, Y, Z
-		x := currentFlight.FlightSchedule.Depature.X + t*(currentFlight.FlightSchedule.Destination.X-currentFlight.FlightSchedule.Depature.X)
-		y := currentFlight.FlightSchedule.Depature.Y + t*(currentFlight.FlightSchedule.Destination.Y-currentFlight.FlightSchedule.Depature.Y)
-		z := currentFlight.FlightSchedule.Depature.Z + t*(currentFlight.FlightSchedule.Destination.Z-currentFlight.FlightSchedule.Depature.Z)
-
-		return aviation.Coordinate{X: x, Y: y, Z: z}, true
-	}
 }
 
 // planeOrientation calculates the rotation angle for the plane image.

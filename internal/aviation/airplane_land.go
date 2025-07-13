@@ -3,7 +3,6 @@ package aviation
 import (
 	"fmt"
 	"log"
-	"os"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -31,7 +30,8 @@ const Epsilon = 0.1 // meters, adjust as needed for precision of coordinates
 //
 //	error: An error if the landing cannot proceed (e.g., wrong destination,
 //	       runways are currently in use, or the plane is not found in flight).
-func (ap *Airport) Land(plane Plane, simState *SimulationState, f *os.File) error {
+func (ap *Airport) Land(plane *Plane, simState *SimulationState) error {
+	f := simState.ConsoleLog
 	log.Printf("Plane %s is attempting to land at Airport %s (%s).\n\n",
 		plane.Serial, ap.Serial, ap.Location.String())
 	fmt.Fprintf(f, "%s Plane %s is attempting to land at Airport %s (%s).\n\n",
@@ -111,7 +111,6 @@ func (ap *Airport) Land(plane Plane, simState *SimulationState, f *os.File) erro
 
 	// 8. Update the plane's status to reflect it's no longer in flight.
 	plane.PlaneInFlight = false
-	plane.CurrentTCASEngagements = []TCASEngagement{}
 
 	plane.FlightLog[len(plane.FlightLog)-1].FlightStatus = "landed"
 	plane.FlightLog[len(plane.FlightLog)-1].ActualLandingTime = simState.CurrentSimTime
@@ -127,7 +126,7 @@ func (ap *Airport) Land(plane Plane, simState *SimulationState, f *os.File) erro
 	// Call the UI callback if registered
 	if simState.OnPlaneLandCallback != nil {
 		fyne.Do(func() { // Ensure UI updates are on main goroutine
-			simState.OnPlaneLandCallback(ap.Serial)
+			simState.OnPlaneLandCallback(plane.Serial)
 		})
 	}
 

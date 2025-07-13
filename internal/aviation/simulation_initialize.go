@@ -3,6 +3,7 @@ package aviation
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"math"
 	"math/rand"
 	"os"
@@ -17,7 +18,7 @@ import (
 // SimulationState holds the collection of live domain objects and their current state
 type SimulationState struct {
 	Airports           []*Airport
-	PlanesInFlight     []Plane
+	PlanesInFlight     []*Plane
 	Mu                 sync.Mutex
 	DifferentAltitudes bool
 	SimIsRunning       bool
@@ -25,9 +26,13 @@ type SimulationState struct {
 	SimWindowOpened    bool
 	CurrentSimTime     time.Time
 
+	// Log files to be closed at end of each simulation
+	ConsoleLog *os.File
+	TCASLog    *os.File
+
 	// Callbacks for UI updates
 	OnPlaneTakeOffCallback func(*Plane)
-	OnPlaneLandCallback    func(string) // Plane serial to remove
+	OnPlaneLandCallback    func(string)
 }
 
 // NEW: RegisterPlaneTakeOffCallback allows the UI to register a function
@@ -38,8 +43,8 @@ func (simState *SimulationState) RegisterPlaneTakeOffCallback(callback func(*Pla
 
 // NEW: RegisterPlaneLandCallback allows the UI to register a function
 // that gets called when a plane lands.
-func (ss *SimulationState) RegisterPlaneLandCallback(callback func(string)) {
-	ss.OnPlaneLandCallback = callback
+func (simState *SimulationState) RegisterPlaneLandCallback(callback func(string)) {
+	simState.OnPlaneLandCallback = callback
 }
 
 // GetNumberOfPlanes prompts the user to input the desired number of planes for the simulation.
@@ -218,4 +223,32 @@ func generateCoordinates(numCoordinates int) []Point {
 	}
 
 	return points
+}
+
+// startInit parses the duration string and initializes the simulation,
+// handles input validation, ensuring a positive integer for simulation duration.
+func OpenLogFiles(cfg *config.Config, simState *SimulationState) {
+
+	logFilePath := "logs/console_log.txt"
+	// Open the file in append mode. Create it if it doesn't exist.
+	f, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatalf("failed to open log file: %v", err)
+	}
+
+	logFilePath = "logs/tcasLog.txt"
+	tcasLog, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatalf("failed to open log file: %v", err)
+	}
+
+	simState.SimIsRunning = true
+	simState.SimEndedTime = time.Time{}
+	simState.ConsoleLog = f
+	simState.TCASLog = tcasLog
+}
+
+func CloseLogFiles(simState *SimulationState) {
+	simState.ConsoleLog.Close()
+	simState.TCASLog.Close()
 }

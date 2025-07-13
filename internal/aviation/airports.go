@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
-	"os"
 	"sync"
 	"time"
 
@@ -18,7 +17,7 @@ type Airport struct {
 	Location           Coordinate
 	InitialPlaneAmount int
 	Runway             runway
-	Planes             []Plane
+	Planes             []*Plane
 	Mu                 sync.Mutex
 	ReceivingPlane     bool
 }
@@ -89,7 +88,8 @@ const AirportLaunchIntervalMin = 1 * time.Second
 const AirportLaunchIntervalMax = 60 * time.Second
 
 // startAirports launches goroutines for each airport to handle takeoffs.
-func startAirports(simState *SimulationState, ctx context.Context, wg *sync.WaitGroup, f, tcasLog *os.File) {
+func startAirports(simState *SimulationState, ctx context.Context, wg *sync.WaitGroup) {
+	f := simState.ConsoleLog
 	log.Printf("--- Starting Airport Launch Operations ---")
 	fmt.Fprintf(f, "%s--- Starting Airport Launch Operations ---\n",
 		time.Now().Format("2006-01-02 15:04:05"))
@@ -123,7 +123,7 @@ func startAirports(simState *SimulationState, ctx context.Context, wg *sync.Wait
 					airport.Mu.Unlock()                 // Unlock airport before calling TakeOff
 
 					// IMPORTANT: Pass the global simState here.
-					_, err := airport.TakeOff(planeToTakeOff, simState, f, tcasLog) // Pass the simState from main
+					_, err := airport.TakeOff(planeToTakeOff, simState) // Pass the simState from main
 					if err != nil {
 						// log.Printf("error taking off from %s: %v", airport.Serial, err)
 					}

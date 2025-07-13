@@ -33,6 +33,7 @@ func GraphicsSimulationInit(simState *aviation.SimulationState, simulationWindow
 		if simState.SimIsRunning {
 			aviation.EmergencyStop(simState)
 		}
+		aviation.CloseLogFiles(simState)
 
 	})
 

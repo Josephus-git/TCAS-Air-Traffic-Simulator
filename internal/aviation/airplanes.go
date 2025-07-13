@@ -16,13 +16,24 @@ const CruiseSpeed = 10.0
 
 // Plane represents an aircraft with its key operational details and flight history.
 type Plane struct {
-	Serial                 string
-	PlaneInFlight          bool
-	CruiseSpeed            float64
-	FlightLog              []Flight
-	TCASCapability         TCASCapability
-	TCASEngagementRecords  []TCASEngagement
-	CurrentTCASEngagements []TCASEngagement
+	Serial                string
+	PlaneInFlight         bool
+	CruiseSpeed           float64
+	FlightLog             []Flight
+	TCASCapability        TCASCapability
+	TCASEngagementRecords []TCASEngagement
+	CurrentTCASEngagement *TCASEngagement
+}
+
+type TCASEngagement struct {
+	EngagementID     string
+	FlightID         string
+	PlaneSerial      string
+	OtherPlaneSerial string
+	TimeOfEngagement time.Time
+	WillCrash        bool
+	WarningTriggered bool // Added to track if the orange warning has been shown
+	Engaged          bool // Added to track if the green/red engagement has occurred
 }
 
 const (
@@ -31,14 +42,14 @@ const (
 )
 
 // createPlane initializes and returns a new Plane struct with a generated serial number.
-func createPlane(planeCount int) Plane {
+func createPlane(planeCount int) *Plane {
 	// Randomly assign TCAS capability
 	capability := TCASPerfect
 	if rand.Float64() < 0.25 { // 25% chance of faulty TCAS
 		capability = TCASFaulty
 	}
 
-	return Plane{
+	return &Plane{
 		Serial:         util.GenerateSerialNumber(planeCount, "p"),
 		PlaneInFlight:  false,
 		CruiseSpeed:    CruiseSpeed,
