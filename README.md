@@ -53,15 +53,13 @@ TCAS-simulator > help
 
 *(Add your screenshots and video demonstrations here to showcase the application in action. You can embed images directly or link to video hosting platforms.)*
 
----
-
 ## Contributing to TCAS Air Traffic Simulator 🤝
 
 We welcome contributions to the TCAS Air Traffic Simulator! Whether it's reporting bugs, suggesting new features, or submitting code changes, your help is greatly appreciated.
 
 ### 🐛 Bug Reports
 
-If you find a bug, please open an issue on our [Issues page]([Your Repository Issues URL Here]). When reporting a bug, please include:
+If you find a bug, please open an issue on our [Issues page](https://github.com/Josephus-git/TCAS-Air-Traffic-Simulator/issues). When reporting a bug, please include:
 
 * A clear and concise description of the bug.
 * Steps to reproduce the behavior.
@@ -72,7 +70,9 @@ If you find a bug, please open an issue on our [Issues page]([Your Repository Is
 
 ### ✨ Feature Requests
 
-Have an idea for a new feature or improvement? We'd love to hear it! Please open an issue on our [Issues page]([Your Repository Issues URL Here]) and describe your idea in detail.
+Have an idea for a new feature or improvement? We'd love to hear it! Please open an issue on our [Issues page](https://github.com/Josephus-git/TCAS-Air-Traffic-Simulator/issues) and describe your idea in detail.
+
+---
 
 ## Contact ✉️
 
