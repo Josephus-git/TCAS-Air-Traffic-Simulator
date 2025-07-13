@@ -84,7 +84,7 @@ func (airport *Airport) TakeOff(plane *Plane, simState *SimulationState) (*Fligh
 	// After the takeoff duration, re-acquire the lock to safely decrement the counter.
 	airport.Mu.Lock()
 	airport.Runway.noOfRunwayinUse--
-	defer airport.Mu.Unlock() // ensures the airport lock is released after the function exits
+	airport.Mu.Unlock()
 
 	// Find and remove the plane from this airport's list of parked planes.
 	planeIndex := -1
@@ -158,8 +158,10 @@ func (airport *Airport) TakeOff(plane *Plane, simState *SimulationState) (*Fligh
 	plane.PlaneInFlight = true
 	plane.FlightLog = append(plane.FlightLog, newFlight)
 
-	// Add the updated plane to the global list of planes currently in flight.>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	// Add the updated plane to the global list of planes currently in flight.
+	simState.Mu.Lock()
 	simState.PlanesInFlight = append(simState.PlanesInFlight, plane)
+	simState.Mu.Unlock()
 
 	log.Printf("Plane %s (Cruise Speed: %.2fm/s) took off from Airport %s %s, heading to Airport %s %s. Estimated landing at %s.\n\n",
 		plane.Serial, plane.CruiseSpeed, airport.Serial, airport.Location.String(), destinationAirport.Serial, destinationAirport.Location.String(), landingTime.Format("15:04:05"))

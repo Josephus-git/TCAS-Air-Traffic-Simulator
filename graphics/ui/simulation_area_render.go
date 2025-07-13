@@ -133,7 +133,7 @@ func (r *simulationAreaRenderer) Layout(size fyne.Size) {
 			otherPlane := otherPlaneRender.ActualPlane // Get the actual plane object
 
 			// If both planes are not in the same Cruise altitude, skip
-			if plane.FlightLog[len(plane.FlightLog)-1].CruisingAltitude != otherPlane.FlightLog[len(plane.FlightLog)-1].CruisingAltitude {
+			if plane.FlightLog[len(plane.FlightLog)-1].CruisingAltitude != otherPlane.FlightLog[len(otherPlane.FlightLog)-1].CruisingAltitude {
 				continue
 			}
 

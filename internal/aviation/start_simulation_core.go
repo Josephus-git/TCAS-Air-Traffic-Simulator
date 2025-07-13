@@ -24,6 +24,7 @@ var stopTrigger *time.Timer
 // startSimulationInit initializes and starts the TCAS simulation, managing goroutines for takeoffs and landings.
 // It sets up a context for graceful shutdown and waits for all simulation activities to complete.
 func StartSimulation(simState *SimulationState, durationMinutes time.Duration) {
+	simState.SimIsRunning = true
 	f := simState.ConsoleLog
 	FlightNumberCount = 0
 
