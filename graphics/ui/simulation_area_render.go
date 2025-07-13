@@ -3,7 +3,6 @@ package ui
 import (
 	"fmt"
 	"image/color"
-	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -67,26 +66,42 @@ func (r *simulationAreaRenderer) Layout(size fyne.Size) {
 	// Use the simulation's current time for all calculations
 	simTime := r.simulationArea.simState.CurrentSimTime
 
+	// Pre-calculate plane positions and reset their current engagement state for this frame.
+	// This map helps avoid re-calculating positions multiple times and ensures all planes start clean.
+	planeStates := make(map[*aviation.Plane]struct {
+		Coord aviation.Coordinate
+		OK    bool
+	})
+
+	for _, pr := range r.simulationArea.planesInFlight {
+		coord, ok := planeCurrentPosition(pr.ActualPlane, simTime)
+		planeStates[pr.ActualPlane] = struct {
+			Coord aviation.Coordinate
+			OK    bool
+		}{Coord: coord, OK: ok}
+		// IMPORTANT: Reset the plane's CurrentTCASEngagement at the start of each frame.
+		// It will be set again below if an active interaction is found.
+		pr.ActualPlane.CurrentTCASEngagement = nil
+	}
+
 	// Iterate through planes and apply rendering logic
 	for _, planeRender := range r.simulationArea.planesInFlight {
 		plane := planeRender.ActualPlane
-		if len(plane.FlightLog) == 0 {
-			continue
-		}
-		currentFlight := plane.FlightLog[len(plane.FlightLog)-1]
+		planeState := planeStates[plane]
 
-		planeCoord, ok := planeCurrentPosition(plane, simTime)
-		if !ok {
+		if !planeState.OK {
 			planeRender.Image.Hidden = true
 			planeRender.FlightPathLine.Hidden = true
 			if planeRender.TCASCircle != nil {
 				planeRender.TCASCircle.Hidden = true
 			}
-			// Reset current engagement if plane is not in flight
-			plane.CurrentTCASEngagement = nil
+			// plane.CurrentTCASEngagement was already reset in the pre-calculation loop above.
 			continue
 		}
 
+		planeCoord := planeState.Coord
+
+		// Update plane image position and visibility
 		displayX := (float32(planeCoord.X) * scale) + r.simulationArea.offsetX
 		displayY := (float32(planeCoord.Y) * scale) + r.simulationArea.offsetY
 
@@ -94,6 +109,8 @@ func (r *simulationAreaRenderer) Layout(size fyne.Size) {
 		planeRender.Image.Move(fyne.NewPos(displayX-currentAirplaneDisplaySize.Width/2, displayY-currentAirplaneDisplaySize.Height/2))
 		planeRender.Image.Hidden = false
 
+		// Update flight path line
+		currentFlight := plane.FlightLog[len(plane.FlightLog)-1]
 		destX := (float32(currentFlight.FlightSchedule.Destination.X) * scale) + r.simulationArea.offsetX
 		destY := (float32(currentFlight.FlightSchedule.Destination.Y) * scale) + r.simulationArea.offsetY
 
@@ -101,87 +118,59 @@ func (r *simulationAreaRenderer) Layout(size fyne.Size) {
 		planeRender.FlightPathLine.Position2 = fyne.NewPos(destX, destY)
 		planeRender.FlightPathLine.Hidden = false
 
-		// --- TCAS Circle Logic ---
-		// Reset current engagement for this frame unless an active one is found
-		plane.CurrentTCASEngagement = nil
+		// Determine the most critical engagement for *this* plane in *this* frame
+		var mostCriticalEngagement *aviation.TCASEngagement = nil
 
+		// --- TCAS Circle Logic ---
+		// Loop through all other planes to find potential interactions
 		for _, otherPlaneRender := range r.simulationArea.planesInFlight {
 			// Don't compare a plane with itself
-			if planeRender.ActualPlane.Serial == otherPlaneRender.ActualPlane.Serial {
+			if plane.Serial == otherPlaneRender.ActualPlane.Serial {
 				continue
 			}
+			otherPlane := otherPlaneRender.ActualPlane // Get the actual plane object
 
-			otherPlane := otherPlaneRender.ActualPlane
-
-			otherPlaneCoord, otherOk := planeCurrentPosition(otherPlane, simTime)
-			if !otherOk {
+			otherPlaneState := planeStates[otherPlane] // Use pre-calculated state
+			if !otherPlaneState.OK {
 				continue // Skip if other plane is not in flight
 			}
+			otherPlaneCoord := otherPlaneState.Coord // Use pre-calculated position
 
 			distanceBetweenPlanes := aviation.Distance(planeCoord, otherPlaneCoord)
 
-			// Find if there's an existing engagement between these two planes
-			var existingEngagement *aviation.TCASEngagement
-			for i := range plane.TCASEngagementRecords {
-				rec := &plane.TCASEngagementRecords[i]
-				if (rec.PlaneSerial == plane.Serial && rec.OtherPlaneSerial == otherPlane.Serial) ||
-					(rec.PlaneSerial == otherPlane.Serial && rec.OtherPlaneSerial == plane.Serial) {
-					existingEngagement = rec
-					break
-				}
-			}
-
 			if distanceBetweenPlanes < TriggerEngageTCAS {
-				// Engagement Zone (Green/Red)
-				if existingEngagement == nil || !existingEngagement.Engaged { // Only trigger if not already engaged
-					// Trigger TCAS core logic
-					newEngagement := tcasCore(r.simulationArea.simState, plane, otherPlane)
-					// Update the current engagement for both planes for rendering this frame
-					plane.CurrentTCASEngagement = &newEngagement
-					otherPlane.CurrentTCASEngagement = &newEngagement // Ensure the other plane also has this engagement
-				} else {
-					// If already engaged, just re-apply the existing engagement
-					plane.CurrentTCASEngagement = existingEngagement
-				}
+				// This is a full engagement: Highest priority.
+				// Call tcasCore which now handles finding/creating the persistent record.
+				engagement := tcasCore(r.simulationArea.simState, plane, otherPlane)
+				mostCriticalEngagement = &engagement // Set this as the display engagement for this plane
+				break                                // Found a full engagement, no need to check other planes for *this* 'plane' anymore
 			} else if distanceBetweenPlanes < TriggerTCAS {
-				// Warning Zone (Orange)
-				if existingEngagement == nil || (!existingEngagement.WarningTriggered && !existingEngagement.Engaged) {
-					// Create a temporary engagement record for warning if not already warned or engaged
+				// This is a warning zone: Lower priority than full engagement.
+				// Only set if we haven't already found a full engagement for 'plane'.
+				if mostCriticalEngagement == nil { // If no full engagement found yet
+					// Create a temporary engagement record for warning display.
+					// This warning is *transient* for display only and not persisted in TCASEngagementRecords.
 					tempEngagement := aviation.TCASEngagement{
-						EngagementID:     fmt.Sprintf("W-%s-%s-%d", plane.Serial, otherPlane.Serial, time.Now().UnixNano()),
+						EngagementID:     fmt.Sprintf("W-Disp-%s-%s-%d", plane.Serial, otherPlane.Serial, simTime.UnixNano()), // Transient ID for display
 						PlaneSerial:      plane.Serial,
 						OtherPlaneSerial: otherPlane.Serial,
 						TimeOfEngagement: simTime,
-						WillCrash:        false, // Not determined yet, just a warning
-						WarningTriggered: true,  // Mark warning as triggered
-						Engaged:          false, // Not yet in engagement phase
+						WillCrash:        false,
+						WarningTriggered: true,
+						Engaged:          false,
 					}
-					// Assign to current engagement for rendering
-					plane.CurrentTCASEngagement = &tempEngagement
-					otherPlane.CurrentTCASEngagement = &tempEngagement
-
-					// Persist the warning state in the TCASEngagementRecords
-					if existingEngagement == nil {
-						plane.TCASEngagementRecords = append(plane.TCASEngagementRecords, tempEngagement)
-						otherPlane.TCASEngagementRecords = append(otherPlane.TCASEngagementRecords, tempEngagement)
-					} else {
-						existingEngagement.WarningTriggered = true
-					}
-
-				} else if existingEngagement.WarningTriggered && !existingEngagement.Engaged {
-					// Continue showing orange if already warned but not yet engaged
-					plane.CurrentTCASEngagement = existingEngagement
-				} else {
-					// If already engaged (green/red), suppress orange
-					plane.CurrentTCASEngagement = existingEngagement // Might still be needed if it just exited engagement
+					mostCriticalEngagement = &tempEngagement
 				}
 			}
-			// If distance > TriggerTCAS, ensure TCAS circle is hidden, unless there's an active engagement for the other plane
-		}
+		} // End of inner loop (otherPlaneRender)
 
-		// After checking all pairs, apply the determined current engagement to the plane's rendering
+		// After checking all other planes for 'plane', set its CurrentTCASEngagement
+		// based on the most critical interaction found (or nil if none).
+		plane.CurrentTCASEngagement = mostCriticalEngagement
+
+		// Apply the determined current engagement to the plane's rendering (show/hide circle)
 		r.applyTCASCircle(planeRender, planeCoord, plane.CurrentTCASEngagement, scale)
-	}
+	} // End of outer loop (planeRender)
 }
 
 // applyTCASCircle Helper function to apply circle properties based on TCASEngagement
@@ -216,7 +205,8 @@ func (r *simulationAreaRenderer) applyTCASCircle(pr *PlaneRender, pCoord aviatio
 		pr.TCASCircle.StrokeColor = color.RGBA{R: 255, G: 165, A: 255} // Orange stroke
 		pr.TCASCircle.FillColor = color.Transparent                    // No fill for warning
 	} else {
-		// Should not happen if engagement is not nil, but as a fallback, hide it
+		// This else block should theoretically not be reached if engagement is not nil,
+		// but as a failsafe, ensure it's hidden if something unexpected occurs.
 		pr.TCASCircle.Hidden = true
 	}
 

@@ -40,6 +40,7 @@ func (sa *SimulationArea) AddPlaneToRender(plane *aviation.Plane) {
 		log.Printf("Failed to rotate plane image: %v", err)
 		return // silently skip rendering this plane
 	}
+	canvas.Refresh(rotatedImg)
 
 	var line *canvas.Line
 	// Create a faint flight path line
