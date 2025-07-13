@@ -51,7 +51,11 @@ TCAS-simulator > help
 
 ## Screenshots & Videos 📸🎬
 
-*(Add your screenshots and video demonstrations here to showcase the application in action. You can embed images directly or link to video hosting platforms.)*
+<img width="1917" height="1051" alt="Screenshot from 2025-07-14 00-29-16" src="https://github.com/user-attachments/assets/abd1b504-84b8-4656-a799-c680df2dafd8" />
+<img width="1917" height="1051" alt="Screenshot from 2025-07-14 00-31-58" src="https://github.com/user-attachments/assets/65468360-c0a2-4dbd-8604-4925b3a3c849" />
+<img width="1917" height="1051" alt="Screenshot from 2025-07-14 00-31-13" src="https://github.com/user-attachments/assets/856da5cd-d34d-4278-a3a6-3e32e8eaa808" />
+<img width="1917" height="1051" alt="Screenshot from 2025-07-14 00-32-43" src="https://github.com/user-attachments/assets/08aeaf66-f7d4-456b-b6e7-0be6034e3691" />
+<img width="1917" height="1051" alt="Screenshot from 2025-07-14 00-38-39" src="https://github.com/user-attachments/assets/52897290-fbeb-4b02-b06b-c7a1ec7033e9" />
 
 ## Contributing to TCAS Air Traffic Simulator 🤝
 
