@@ -130,6 +130,11 @@ func (r *simulationAreaRenderer) Layout(size fyne.Size) {
 			}
 			otherPlane := otherPlaneRender.ActualPlane // Get the actual plane object
 
+			// If both planes are not in the same Cruise altitude, skip
+			if plane.FlightLog[len(plane.FlightLog)-1].CruisingAltitude != otherPlane.FlightLog[len(plane.FlightLog)-1].CruisingAltitude {
+				continue
+			}
+
 			otherPlaneState := planeStates[otherPlane] // Use pre-calculated state
 			if !otherPlaneState.OK {
 				continue // Skip if other plane is not in flight
@@ -244,7 +249,7 @@ func (r *simulationAreaRenderer) Objects() []fyne.CanvasObject {
 func (r *simulationAreaRenderer) Destroy() {
 	// Clean up any resources if necessary
 	r.simulationArea.animationTicker.Stop() // Stop the animation ticker
-	r.simulationArea.ClearAllPlanes()
+	r.simulationArea.ClearAllResource()
 }
 
 func (r *simulationAreaRenderer) Refresh() {

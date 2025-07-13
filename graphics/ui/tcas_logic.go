@@ -12,7 +12,7 @@ import (
 const TriggerTCAS = 50.0
 
 // TriggerEngageTCAS displays the planes engaging in TCAS manauver, if successful, green else red
-const TriggerEngageTCAS = 15.0
+const TriggerEngageTCAS = 20.0
 
 // tcasCore handles the collision resolution logic and ensures a TCASEngagement record
 // is stored only once per flight for a given pair of planes.

@@ -214,7 +214,7 @@ func (sa *SimulationArea) ZoomOut() {
 	sa.Refresh()
 }
 
-func (sa *SimulationArea) ClearAllPlanes() {
+func (sa *SimulationArea) ClearAllResource() {
 	for _, p := range sa.planesInFlight {
 		if p.Image != nil {
 			p.Image.Hide()
@@ -228,5 +228,6 @@ func (sa *SimulationArea) ClearAllPlanes() {
 	}
 	sa.planesInFlight = []*PlaneRender{} // Reset the slice
 	sa.airports = []*AirportRender{}
+
 	sa.Refresh()
 }

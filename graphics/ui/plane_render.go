@@ -46,11 +46,11 @@ func (sa *SimulationArea) AddPlaneToRender(plane *aviation.Plane) {
 	// Create a faint flight path line
 	switch currentFlight.CruisingAltitude {
 	case 11000.0:
-		line = canvas.NewLine(color.RGBA{G: 200, A: 25}) // Light green, semi-transparent
+		line = canvas.NewLine(color.RGBA{G: 200, A: 50}) // Light green, semi-transparent
 	case 12000.0:
-		line = canvas.NewLine(color.RGBA{B: 200, A: 25}) // Light blue, semi-transparent
+		line = canvas.NewLine(color.RGBA{B: 200, A: 50}) // Light blue, semi-transparent
 	default:
-		line = canvas.NewLine(color.RGBA{R: 200, G: 200, B: 200, A: 25}) // Light grey, semi-transparent
+		line = canvas.NewLine(color.RGBA{R: 200, G: 200, B: 200, A: 50}) // Light grey, semi-transparent
 	}
 
 	line.StrokeWidth = 1

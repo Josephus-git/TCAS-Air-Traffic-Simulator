@@ -145,12 +145,15 @@ func StartFyne(cfg *config.Config, simState *aviation.SimulationState) {
 				return
 			}
 
-			if !cfg.FirstRun {
+			if !cfg.FirstRun && simState.SimWindowOpened {
 				cfg.DifferentAltitudes = varyingAltitudeCheckbox.Checked
 			}
 
 			errorMessage.Text = "" // Clear error message
 			errorMessage.Refresh()
+
+			simState.Airports = []*aviation.Airport{}
+			simState.PlanesInFlight = []*aviation.Plane{}
 
 			// Initialize the airports
 			cfg.NoOfAirplanes = numAirPlanes
