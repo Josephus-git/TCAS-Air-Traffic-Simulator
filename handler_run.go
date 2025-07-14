@@ -154,6 +154,12 @@ func StartFyne(cfg *config.Config, simState *aviation.SimulationState) {
 				cfg.DifferentAltitudes = varyingAltitudeCheckbox.Checked
 			}
 
+			if simState.SimIsRunning {
+				errorMessage.Text = "Please wait a few seconds before restarting the simulation"
+				errorMessage.Refresh()
+				return
+			}
+
 			errorMessage.Text = "" // Clear error message
 			errorMessage.Refresh()
 

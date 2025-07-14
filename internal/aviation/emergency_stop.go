@@ -11,7 +11,6 @@ func EmergencyStop(simState *SimulationState) {
 		simulationCancelFunc() // Trigger cancellation
 		// Reset the cancel func to indicate no active simulation,
 		// and prevent multiple calls to a potentially nil context if Start() finished.
-		simState.SimIsRunning = false
 		if stopTrigger.Stop() {
 		}
 		simulationCancelFunc = nil
