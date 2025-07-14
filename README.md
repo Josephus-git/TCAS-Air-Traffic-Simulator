@@ -56,8 +56,7 @@ TCAS-simulator > help
 <img width="1917" height="1051" alt="Screenshot from 2025-07-14 00-31-13" src="https://github.com/user-attachments/assets/856da5cd-d34d-4278-a3a6-3e32e8eaa808" />
 <img width="1917" height="1051" alt="Screenshot from 2025-07-14 00-32-43" src="https://github.com/user-attachments/assets/08aeaf66-f7d4-456b-b6e7-0be6034e3691" />
 <img width="1917" height="1051" alt="Screenshot from 2025-07-14 00-38-39" src="https://github.com/user-attachments/assets/52897290-fbeb-4b02-b06b-c7a1ec7033e9" />
-<img width="1917" height="1051" alt="Screenshot from 2025-07-14 00-38-39" src="https://github.com/user-attachments/assets/36e97fa1-bf53-465a-83a8-d7cf3b4a3cf5" />
-![Screencast from 2025-07-14 00-50-12](https://github.com/user-attachments/assets/36e97fa1-bf53-465a-83a8-d7cf3b4a3cf5)
+https://github.com/user-attachments/assets/36e97fa1-bf53-465a-83a8-d7cf3b4a3cf5
 
 
 ## Contributing to TCAS Air Traffic Simulator 🤝
