@@ -16,6 +16,25 @@ var CruisingAltitudes = [3]float64{10000.0, 11000.0, 12000.0}
 // TakeoffDuration defines how long a takeoff operation physically lasts.
 const TakeoffDuration = 5 * time.Second
 
+// getRandomDestinationAirport selects a random airport from the list of all airports
+// that is not the current airport (airport). This helps in simulating inter-airport travel.
+func (airport *Airport) getRandomDestinationAirport(allAirports []*Airport) (*Airport, error) {
+	eligibleAirports := []*Airport{}
+	for _, otherAp := range allAirports {
+		if otherAp.Serial != airport.Serial { // A plane cannot fly to the airport it just took off from
+			eligibleAirports = append(eligibleAirports, otherAp)
+		}
+	}
+	if len(eligibleAirports) == 0 {
+		return nil, fmt.Errorf("no other airports available to serve as a destination")
+	}
+
+	// Use a new random source to ensure sufficient randomness, especially if called frequently.
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	randomIndex := r.Intn(len(eligibleAirports))
+	return eligibleAirports[randomIndex], nil
+}
+
 // TakeOff prepares a plane for flight, simulates its takeoff, and updates the simulation state.
 // It handles runway allocation, flight path generation, and state transitions for the plane and airport.
 //
@@ -176,23 +195,4 @@ func (airport *Airport) TakeOff(plane *Plane, simState *SimulationState) (*Fligh
 	}
 
 	return &newFlight, nil
-}
-
-// getRandomDestinationAirport selects a random airport from the list of all airports
-// that is not the current airport (airport). This helps in simulating inter-airport travel.
-func (airport *Airport) getRandomDestinationAirport(allAirports []*Airport) (*Airport, error) {
-	eligibleAirports := []*Airport{}
-	for _, otherAp := range allAirports {
-		if otherAp.Serial != airport.Serial { // A plane cannot fly to the airport it just took off from
-			eligibleAirports = append(eligibleAirports, otherAp)
-		}
-	}
-	if len(eligibleAirports) == 0 {
-		return nil, fmt.Errorf("no other airports available to serve as a destination")
-	}
-
-	// Use a new random source to ensure sufficient randomness, especially if called frequently.
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	randomIndex := r.Intn(len(eligibleAirports))
-	return eligibleAirports[randomIndex], nil
 }

@@ -8,12 +8,15 @@ import (
 	"fyne.io/fyne/v2"
 )
 
-// LandingDuration defines how long a landing operation physically lasts.
-const LandingDuration = 7 * time.Second
+const (
+	// LandingDuration defines how long a landing operation physically lasts.
+	LandingDuration = 7 * time.Second
 
-// Epsilon is a small value used for floating-point comparisons,
-// particularly when checking if coordinates are approximately equal.
-const Epsilon = 0.1 // meters, adjust as needed for precision of coordinates
+	// Epsilon is a small value used for floating-point comparisons,
+	// particularly when checking if coordinates are approximately equal.
+	Epsilon = 0.1 // meters, adjust as needed for precision of coordinates
+
+)
 
 // Land handles the process of a plane landing at an airport.
 // It verifies the plane's intended destination, strictly manages runway availability,

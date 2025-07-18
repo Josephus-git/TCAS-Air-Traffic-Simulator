@@ -14,16 +14,11 @@ type TCASCapability int
 // CruiseSpeed defines the speed of all planes
 const CruiseSpeed = 10.0
 
-// Plane represents an aircraft with its key operational details and flight history.
-type Plane struct {
-	Serial                string
-	PlaneInFlight         bool
-	CruiseSpeed           float64
-	FlightLog             []Flight
-	TCASCapability        TCASCapability
-	TCASEngagementRecords []TCASEngagement
-	CurrentTCASEngagement *TCASEngagement
-}
+// TCASCapability defines the operational state of a plane's TCAS system.
+const (
+	TCASPerfect TCASCapability = iota // 0
+	TCASFaulty
+)
 
 // TCASEngagement represents a recorded interaction between two planes, tracking its ID, involved aircraft,
 // time, and the nature of the engagement (e.g., warning, crash prediction).
@@ -38,11 +33,16 @@ type TCASEngagement struct {
 	Engaged          bool // Added to track if the green/red engagement has occurred
 }
 
-// TCASCapability defines the operational state of a plane's TCAS system.
-const (
-	TCASPerfect TCASCapability = iota // 0
-	TCASFaulty
-)
+// Plane represents an aircraft with its key operational details and flight history.
+type Plane struct {
+	Serial                string
+	PlaneInFlight         bool
+	CruiseSpeed           float64
+	FlightLog             []Flight
+	TCASCapability        TCASCapability
+	TCASEngagementRecords []TCASEngagement
+	CurrentTCASEngagement *TCASEngagement
+}
 
 // createPlane initializes and returns a new Plane struct with a generated serial number.
 func createPlane(planeCount int) *Plane {
